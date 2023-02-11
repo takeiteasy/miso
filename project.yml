@@ -1,0 +1,34 @@
+name: colony
+
+options:
+  bundleIdPrefix: io.github.takeiteasy
+  createIntermediateGroups: true
+  deploymentTarget:
+    macOS: "12.0"
+
+settings:
+  GCC_C_LANGUAGE_STANDARD: c11
+
+targets:
+  colony:
+    type: application
+    platform: macOS
+    info:
+      path: Info.plist
+    sources:
+        - path: assets/
+          type: folder
+        - path: deps/
+          type: folder
+        - path: build/
+          type: folder
+        - path: src/
+    dependencies:
+        - sdk: Cocoa.framework
+        - sdk: Metal.framework
+        - sdk: MetalKit.framework
+        - sdk: Quartz.framework
+        - sdk: AudioToolbox.framework
+    settings:
+        HEADER_SEARCH_PATHS: [$(PROJECT_DIR)/deps, $(PROJECT_DIR)/build]
+        OTHER_CFLAGS: ["-x objective-c", -DSOKOL_METAL, -fobjc-arc]

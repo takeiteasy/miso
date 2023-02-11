@@ -1,0 +1,6 @@
+.DS_Store
+*.xcodeproj
+*.pbxproj
+*.xcworksparedata
+*.plist
+*.xcscheme
