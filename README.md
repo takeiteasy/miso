@@ -21,15 +21,14 @@ Nothing to see yet
     - minilua.h
 - [scottt/debugbreak](https://github.com/scottt/debugbreak/) (BSD-2-Clause)
     - debugbreak.h
+- [tidwall/hashmap.c](https://github.com/tidwall/hashmap.c) (MIT)
+    - hashmap.h
     
 ### References
 
 - [erkkah/tigr](https://github.com/erkkah/tigr/blob/master/src/tigr_loadpng.c)
     - Slight modified .png loader adapted from tigr_loadpng.c
-- [tidwall/hashmap.c](https://github.com/tidwall/hashmap.c) (MIT)
-    - Slightly modified and striped down
-    - SipHash implementation (Public Domain CC0)
-    
+
 ### Assets
 
 - hand.png by [kicked-in-teeth](https://kicked-in-teeth.itch.io/grab-hand)
