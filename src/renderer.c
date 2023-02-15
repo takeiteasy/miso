@@ -134,7 +134,7 @@ bool CommitBatches(const void *item, void*_) {
 }
 
 void RunRenderPass(RenderPass *pass) {
-    sg_begin_default_pass(&pass->pass_action, pass->size.x, pass->size.y);
+    sg_begin_default_pass(&pass->pass_action, pass->size.x == 0.f ? sapp_width() : pass->size.x, pass->size.y == 0.f ? sapp_width() : pass->size.y);
     sg_apply_pipeline(pass->pip);
     hashmap_scan(pass->textures, ResetBatches, NULL);
     pass->cb(pass);
@@ -159,15 +159,15 @@ TextureBatch* RenderPassGetBatch(RenderPass *pass, const char *path) {
     return &found->batch;
 }
 
-void TextureBatchRender(TextureBatch *batch, Vec2 position, Vec2 size, Vec2 scale, float rotation, Rect clip) {
+void TextureBatchRender(TextureBatch *batch, Vec2 position, Vec2 size, Vec2 scale, Vec2 viewportSize, float rotation, Rect clip) {
     Vec2 quad[4] = {
         {position.x, position.y + size.y}, // bottom left
         {position.x + size.x, position.y + size.y}, // bottom right
         {position.x + size.x, position.y }, // top right
         {position.x, position.y }, // top left
     };
-    float vw =  2.f / (float)sapp_width();
-    float vh = -2.f / (float)sapp_height();
+    float vw =  2.f / viewportSize.x;
+    float vh = -2.f / viewportSize.y;
     for (int j = 0; j < 4; j++)
         quad[j] = (Vec2) {
             vw * quad[j].x + -1.f,

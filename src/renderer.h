@@ -55,7 +55,7 @@ RenderPass NewRenderPass(int w, int h, RenderPassCb cb);
 void RunRenderPass(RenderPass *pass);
 void RenderPassNewBatch(RenderPass *pass, const char *path, int maxVertices);
 TextureBatch* RenderPassGetBatch(RenderPass *pass, const char *path);
-void TextureBatchRender(TextureBatch *batch, Vec2 position, Vec2 size, Vec2 scale, float rotation, Rect clip);
+void TextureBatchRender(TextureBatch *batch, Vec2 position, Vec2 size, Vec2 scale, Vec2 viewportSize, float rotation, Rect clip);
 void DestroyRenderPass(RenderPass *pass);
 
 #endif /* renderer_h */

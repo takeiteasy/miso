@@ -8,6 +8,7 @@
 #ifndef linalgb_h
 #define linalgb_h
 #include <math.h>
+#include <stdbool.h>
 
 #define MIN(a, b) (a < b ? a : b)
 #define MAX(a, b) (a > b ? a : b)
@@ -21,5 +22,7 @@ typedef struct {
     Vec2 pos;
     Vec2 size;
 } Rect;
+
+bool DoRectsCollide(Rect a, Rect b);
 
 #endif /* linalgb_h */
