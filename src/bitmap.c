@@ -56,11 +56,11 @@ int RGBa(int c, unsigned char a) {
 }
 
 Bitmap NewBitmap(unsigned int w, unsigned int h) {
-    Bitmap result;
-    result.w = w;
-    result.h = h;
-    result.buf = malloc(w * h * sizeof(int));
-    return result;
+    return (Bitmap) {
+        .w = w,
+        .h = h,
+        .buf = malloc(w * h * sizeof(int))
+    };
 }
 
 void DestroyBitmap(Bitmap *bitmap) {

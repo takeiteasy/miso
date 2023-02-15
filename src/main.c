@@ -13,14 +13,13 @@
 
 #include "linalgb.h"
 #include "ecs.h"
-#include "sprite.h"
+#include "renderer.h"
 
 #include <stdbool.h>
 
 static Entity EcsPositionComponent;
 static Entity EcsCameraComponent;
 static Entity EcsChunkComponent;
-static Entity EcsRenderableComponent;
 
 #define TILE_WIDTH 32
 #define TILE_HEIGHT 16
@@ -52,34 +51,16 @@ typedef struct {
     Vec2 target;
 } Camera;
 
-#define SPRITES \
-    X(Chunk, "tiles.png", CHUNK_SIZE) \
-    X(Cursor, "hand.png", 1)
-typedef enum {
-#define X(NAME, FILE, SZ) NAME##Layer,
-    SPRITES
-#undef X
-    BATCH_LAYER_SIZE
-} BatchLayers;
-
 static struct {
     World *world;
-    struct {
-        Spritesheet sheet;
-        Spritebatch batch;
-    } renderers[BATCH_LAYER_SIZE];
     Chunk *chunks[MAX_CHUNKS];
     int chunksSize;
-    
+    RenderPass chunkPass;
+    Texture chunkTexture;
+    TextureBatch chunkBatch;
     Vec2 screen;
     float delta;
-    sg_pass_action pass_action;
-    sg_pipeline pip;
-} state = {
-    .pass_action = (sg_pass_action) {
-        .colors[0] = { .action=SG_ACTION_CLEAR, .value={0.f, 0.f, 0.f, 1.f} }
-    }
-};
+} state;
 
 static struct {
     bool button_down[SAPP_MAX_KEYCODES];
@@ -163,7 +144,6 @@ static void RenderChunk(Query *query) {
             DestroyEntity(state.world, query->entity);
             break;
         case CHUNK_VISIBLE:;
-            Renderable *renderable = ECS_FIELD(query, Renderable, 1);
             Vec2 chunkPosition = (Vec2){chunk->x * CHUNK_WIDTH, chunk->y * CHUNK_HEIGHT};
             Vec2 offset = chunkPosition * (Vec2){TILE_WIDTH,HALF_TILE_HEIGHT} + (-cameraPosition + state.screen / 2);
             Rect viewportBounds = {{0, 0}, state.screen};
@@ -175,8 +155,7 @@ static void RenderChunk(Query *query) {
                     Rect bounds = {{px, py}, {TILE_WIDTH, TILE_HEIGHT}};
                     if (!DoRectsCollide(viewportBounds, bounds))
                         continue;
-                    Rect clip = {{ChunkIndex(chunk->x, chunk->y) % 4 * 32, 0}, {TILE_WIDTH, TILE_HEIGHT}};
-                    SpritebatchRenderEx(renderable->batch, state.screen.x, state.screen.y, bounds, clip, NoColor);
+                    TextureBatchRender(&state.chunkBatch, (Vec2){px,py}, (Vec2){TILE_WIDTH,TILE_HEIGHT}, (Vec2){1.f,1.f}, 0.f, (Rect){{ChunkIndex(chunk->x, chunk->y) % 4 * 32, 0}, {TILE_WIDTH, TILE_HEIGHT}});
                 }
         case CHUNK_RESERVED:
             state.chunks[state.chunksSize++] = chunk;
@@ -198,9 +177,6 @@ static void AddChunk(int x, int y) {
     Chunk *chunk = EcsGet(state.world, e, EcsChunkComponent);
     chunk->x = x;
     chunk->y = y;
-    EcsAttach(state.world, e, EcsRenderableComponent);
-    Renderable *chunkRenderable = EcsGet(state.world, e, EcsRenderableComponent);
-    chunkRenderable->batch = &state.renderers[ChunkLayer].batch;
 }
 
 Vec2i CalcChunk(int x, int y) {
@@ -208,6 +184,12 @@ Vec2i CalcChunk(int x, int y) {
         (int)floorf(x / (float)CHUNK_REAL_WIDTH),
         (int)floorf(y / (float)CHUNK_REAL_HEIGHT)
     };
+}
+
+static void ChunkPass(RenderPass *pass) {
+    ResetTextureBatch(&state.chunkBatch);
+    EcsStep(state.world);
+    CommitTextureBatch(&state.chunkBatch);
 }
 
 static void UpdateCamera(Query *query) {
@@ -239,7 +221,7 @@ static void UpdateCamera(Query *query) {
     
     memset(state.chunks, 0, MAX_CHUNKS * sizeof(Chunk*));
     state.chunksSize = 0;
-    ECS_QUERY(state.world, RenderChunk, (void*)&camera->position, EcsChunkComponent, EcsRenderableComponent);
+    ECS_QUERY(state.world, RenderChunk, (void*)&camera->position, EcsChunkComponent);
     
     if (moved) {
         Vec2i cameraChunk = CalcChunk(camera->position.x, camera->position.y);
@@ -265,42 +247,15 @@ static void init(void) {
     });
     stm_setup();
     
-    state.pip = sg_make_pipeline(&(sg_pipeline_desc) {
-        .primitive_type = SG_PRIMITIVETYPE_TRIANGLES,
-        .shader = sg_make_shader(sprite_program_shader_desc(sg_query_backend())),
-        .layout = {
-            .buffers[0].stride = sizeof(Vertex),
-            .attrs = {
-                [ATTR_sprite_vs_position].format=SG_VERTEXFORMAT_FLOAT2,
-                [ATTR_sprite_vs_texcoord].format=SG_VERTEXFORMAT_FLOAT2,
-                [ATTR_sprite_vs_color].format=SG_VERTEXFORMAT_FLOAT4
-            }
-        },
-        .colors[0] = {
-            .blend = {
-                .enabled = true,
-                .src_factor_rgb = SG_BLENDFACTOR_SRC_ALPHA,
-                .dst_factor_rgb = SG_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
-                .op_rgb = SG_BLENDOP_ADD,
-                .src_factor_alpha = SG_BLENDFACTOR_ONE,
-                .dst_factor_alpha = SG_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
-                .op_alpha = SG_BLENDOP_ADD
-            }
-        }
-    });
-    
-#define X(NAME, FILE, SZ)                                                 \
-    state.renderers[NAME##Layer].sheet = LoadSpritesheet("assets/" FILE); \
-    state.renderers[NAME##Layer].batch = NewSpritebatch(&state.renderers[NAME##Layer].sheet, SZ * 6);
-    SPRITES
-#undef X
-    
     state.world = EcsNewWorld();
     state.screen = (Vec2){sapp_width(), sapp_height()};
     
-    EcsPositionComponent = ECS_COMPONENT(state.world, Position);
+    state.chunkPass = NewRenderPass(state.screen.x, state.screen.y, ChunkPass);
+    state.chunkTexture = LoadTexture("assets/tiles.png");
+    state.chunkBatch = NewTextureBatch(&state.chunkTexture, CHUNK_SIZE);
+ 
+    EcsPositionComponent = ECS_COMPONENT(state.world, Vec2);
     EcsChunkComponent = ECS_COMPONENT(state.world, Chunk);
-    EcsRenderableComponent = ECS_COMPONENT(state.world, Renderable);
     EcsCameraComponent = ECS_COMPONENT(state.world, Camera);
     
     Entity mainCamera = EcsNewEntity(state.world);
@@ -317,14 +272,9 @@ static void init(void) {
 
 static void frame(void) {
     state.delta = (float)(sapp_frame_duration() * 60.0);
-    sg_begin_default_pass(&state.pass_action, state.screen.x, state.screen.y);
-    sg_apply_pipeline(state.pip);
-    for (int i = 0; i < BATCH_LAYER_SIZE; i++)
-        SpritebatchBegin(&state.renderers[i].batch);
-    EcsStep(state.world);
-    for (int i = 0; i < BATCH_LAYER_SIZE; i++)
-        SpritebatchEnd(&state.renderers[i].batch);
-    sg_end_pass();
+    
+    RunRenderPass(&state.chunkPass);
+    
     sg_commit();
     
     Input.mouse_delta = Input.mouse_scroll_delta = (Vec2){0};
@@ -373,12 +323,10 @@ static void input(const sapp_event *e) {
 }
 
 static void cleanup(void) {
-    for (int i = 0; i < BATCH_LAYER_SIZE; i++) {
-        DestroySpritesheet(&state.renderers[i].sheet);
-        DestroySpritebatch(&state.renderers[i].batch);
-    }
+    DestroyTexture(&state.chunkTexture);
+    DestroyTextureBatch(&state.chunkBatch);
+    DestroyRenderPass(&state.chunkPass);
     DestroyWorld(&state.world);
-    sg_destroy_pipeline(state.pip);
     sg_shutdown();
 }
 

@@ -21,8 +21,7 @@ in vec4 col;
 out vec4 fragColor;
 
 void main() {
-    vec4 tex = texture(sprite, uv);
-    fragColor = tex.a > 0 ? col == vec4(0.f, 0.f, 0.f, 1.f) ? tex : col : vec4(0.f);
+    fragColor = texture(sprite, uv);
 }
 @end
 
