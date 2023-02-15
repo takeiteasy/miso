@@ -47,12 +47,12 @@ struct RenderPass {
     Vec2 size;
     sg_pass_action pass_action;
     sg_pipeline pip;
-    RenderPassCb cb;
     Hashmap *textures;
 };
 
-RenderPass NewRenderPass(int w, int h, RenderPassCb cb);
-void RunRenderPass(RenderPass *pass);
+RenderPass NewRenderPass(int w, int h);
+void RenderPassBegin(RenderPass *pass);
+void RenderPassEnd(RenderPass *pass);
 void RenderPassNewBatch(RenderPass *pass, const char *path, int maxVertices);
 TextureBatch* RenderPassGetBatch(RenderPass *pass, const char *path);
 void TextureBatchRender(TextureBatch *batch, Vec2 position, Vec2 size, Vec2 scale, Vec2 viewportSize, float rotation, Rect clip);

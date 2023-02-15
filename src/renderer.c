@@ -87,7 +87,7 @@ static void FreeBatch(void *item) {
     DestroyTextureBatch(&bucket->batch);
 }
 
-RenderPass NewRenderPass(int w, int h, RenderPassCb cb) {
+RenderPass NewRenderPass(int w, int h) {
     return (RenderPass) {
         .size = {w,h},
         .pass_action = (sg_pass_action) {
@@ -116,7 +116,6 @@ RenderPass NewRenderPass(int w, int h, RenderPassCb cb) {
                 }
             }
         }),
-        .cb = cb,
         .textures = hashmap_new(sizeof(TextureBucket), 0, 0, 0, HashBatch, CompareBatch, FreeBatch, NULL)
     };
 }
@@ -133,11 +132,13 @@ bool CommitBatches(const void *item, void*_) {
     return true;
 }
 
-void RunRenderPass(RenderPass *pass) {
+void RenderPassBegin(RenderPass *pass) {
     sg_begin_default_pass(&pass->pass_action, pass->size.x == 0.f ? sapp_width() : pass->size.x, pass->size.y == 0.f ? sapp_width() : pass->size.y);
     sg_apply_pipeline(pass->pip);
     hashmap_scan(pass->textures, ResetBatches, NULL);
-    pass->cb(pass);
+}
+
+void RenderPassEnd(RenderPass *pass) {
     hashmap_scan(pass->textures, CommitBatches, NULL);
     sg_end_pass();
 }

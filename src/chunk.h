@@ -41,6 +41,6 @@ typedef struct {
 Vec2i CalcChunk(int x, int y);
 ChunkState CalcChunkState(int x, int y, Vec2 cameraPosition, Vec2 cameraSize);
 void AddChunk(World *world, int x, int y);
-ChunkState RenderChunk(World *world, Chunk *chunk, Vec2 cameraPosition, Vec2 cameraSize, TextureBatch *batch);
+void RenderChunk(World *world, Chunk *chunk, Vec2 cameraPosition, Vec2 cameraSize, TextureBatch *batch);
 
 #endif /* chunk_h */

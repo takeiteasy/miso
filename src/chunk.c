@@ -54,22 +54,18 @@ static int ChunkIndex(int x, int y) {
     return _x >= _y ? _x * _x + _x + _y : _x + _y * _y;
 }
 
-ChunkState RenderChunk(World *world, Chunk *chunk, Vec2 cameraPosition, Vec2 cameraSize, TextureBatch *batch) {
-    ChunkState chunkState = CalcChunkState(chunk->x, chunk->y, cameraPosition, cameraSize);
-    if (chunkState == CHUNK_VISIBLE) {
-        Vec2 chunkPosition = (Vec2){chunk->x * CHUNK_WIDTH, chunk->y * CHUNK_HEIGHT};
-        Vec2 offset = chunkPosition * (Vec2){TILE_WIDTH,HALF_TILE_HEIGHT} + (-cameraPosition + cameraSize / 2);
-        Rect viewportBounds = {{0, 0}, cameraSize};
-        
-        for (int x = 0; x < CHUNK_WIDTH; x++)
-            for (int y = 0; y < CHUNK_HEIGHT; y++) {
-                float px = offset.x + ((float)x * (float)TILE_WIDTH) + (y % 2 ? HALF_TILE_WIDTH : 0);
-                float py = offset.y + ((float)y * (float)TILE_HEIGHT) - (y * HALF_TILE_HEIGHT);
-                Rect bounds = {{px, py}, {TILE_WIDTH, TILE_HEIGHT}};
-                if (!DoRectsCollide(viewportBounds, bounds))
-                    continue;
-                TextureBatchRender(batch, (Vec2){px,py}, (Vec2){TILE_WIDTH,TILE_HEIGHT}, (Vec2){1.f,1.f}, cameraSize, 0.f, (Rect){{ChunkIndex(chunk->x, chunk->y) % 4 * 32, 0}, {TILE_WIDTH, TILE_HEIGHT}});
-            }
-    }
-    return chunkState;
+void RenderChunk(World *world, Chunk *chunk, Vec2 cameraPosition, Vec2 cameraSize, TextureBatch *batch) {
+    Vec2 chunkPosition = (Vec2){chunk->x * CHUNK_WIDTH, chunk->y * CHUNK_HEIGHT};
+    Vec2 offset = chunkPosition * (Vec2){TILE_WIDTH,HALF_TILE_HEIGHT} + (-cameraPosition + cameraSize / 2);
+    Rect viewportBounds = {{0, 0}, cameraSize};
+    
+    for (int x = 0; x < CHUNK_WIDTH; x++)
+        for (int y = 0; y < CHUNK_HEIGHT; y++) {
+            float px = offset.x + ((float)x * (float)TILE_WIDTH) + (y % 2 ? HALF_TILE_WIDTH : 0);
+            float py = offset.y + ((float)y * (float)TILE_HEIGHT) - (y * HALF_TILE_HEIGHT);
+            Rect bounds = {{px, py}, {TILE_WIDTH, TILE_HEIGHT}};
+            if (!DoRectsCollide(viewportBounds, bounds))
+                continue;
+            TextureBatchRender(batch, (Vec2){px,py}, (Vec2){TILE_WIDTH,TILE_HEIGHT}, (Vec2){1.f,1.f}, cameraSize, 0.f, (Rect){{ChunkIndex(chunk->x, chunk->y) % 4 * 32, 0}, {TILE_WIDTH, TILE_HEIGHT}});
+        }
 }

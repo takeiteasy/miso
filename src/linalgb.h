@@ -24,5 +24,6 @@ typedef struct {
 } Rect;
 
 bool DoRectsCollide(Rect a, Rect b);
+float Vec2Dist(Vec2 a, Vec2 b);
 
 #endif /* linalgb_h */

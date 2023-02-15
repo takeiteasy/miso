@@ -13,3 +13,7 @@ bool DoRectsCollide(Rect a, Rect b) {
            a.pos.y < b.pos.y + b.size.y &&
            a.size.y + a.pos.y > b.pos.y;
 }
+
+float Vec2Dist(Vec2 a, Vec2 b) {
+    return sqrtf((a.x - b.x)*(a.x - b.x) + (a.y - b.y)*(a.y - b.y));
+}
