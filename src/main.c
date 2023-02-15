@@ -56,8 +56,6 @@ static struct {
     Chunk *chunks[MAX_CHUNKS];
     int chunksSize;
     RenderPass chunkPass;
-    Texture chunkTexture;
-    TextureBatch chunkBatch;
     Vec2 screen;
     float delta;
 } state;
@@ -138,6 +136,7 @@ static void RenderChunk(Query *query) {
     Chunk *chunk = ECS_FIELD(query, Chunk, 0);
     Vec2 cameraPosition = *(Vec2*)query->userdata;
     ChunkState chunkState = CalcChunkState(chunk->x, chunk->y, cameraPosition, state.screen);
+    TextureBatch *batch = RenderPassGetBatch(&state.chunkPass, "assets/tiles.png");
     switch (chunkState) {
         case CHUNK_FREE:
             printf("DELETE CHUNK %d, %d\n", chunk->x, chunk->y);
@@ -155,7 +154,7 @@ static void RenderChunk(Query *query) {
                     Rect bounds = {{px, py}, {TILE_WIDTH, TILE_HEIGHT}};
                     if (!DoRectsCollide(viewportBounds, bounds))
                         continue;
-                    TextureBatchRender(&state.chunkBatch, (Vec2){px,py}, (Vec2){TILE_WIDTH,TILE_HEIGHT}, (Vec2){1.f,1.f}, 0.f, (Rect){{ChunkIndex(chunk->x, chunk->y) % 4 * 32, 0}, {TILE_WIDTH, TILE_HEIGHT}});
+                    TextureBatchRender(batch, (Vec2){px,py}, (Vec2){TILE_WIDTH,TILE_HEIGHT}, (Vec2){1.f,1.f}, 0.f, (Rect){{ChunkIndex(chunk->x, chunk->y) % 4 * 32, 0}, {TILE_WIDTH, TILE_HEIGHT}});
                 }
         case CHUNK_RESERVED:
             state.chunks[state.chunksSize++] = chunk;
@@ -187,9 +186,7 @@ Vec2i CalcChunk(int x, int y) {
 }
 
 static void ChunkPass(RenderPass *pass) {
-    ResetTextureBatch(&state.chunkBatch);
     EcsStep(state.world);
-    CommitTextureBatch(&state.chunkBatch);
 }
 
 static void UpdateCamera(Query *query) {
@@ -251,8 +248,7 @@ static void init(void) {
     state.screen = (Vec2){sapp_width(), sapp_height()};
     
     state.chunkPass = NewRenderPass(state.screen.x, state.screen.y, ChunkPass);
-    state.chunkTexture = LoadTexture("assets/tiles.png");
-    state.chunkBatch = NewTextureBatch(&state.chunkTexture, CHUNK_SIZE);
+    RenderPassNewBatch(&state.chunkPass, "assets/tiles.png", CHUNK_SIZE);
  
     EcsPositionComponent = ECS_COMPONENT(state.world, Vec2);
     EcsChunkComponent = ECS_COMPONENT(state.world, Chunk);
@@ -323,8 +319,6 @@ static void input(const sapp_event *e) {
 }
 
 static void cleanup(void) {
-    DestroyTexture(&state.chunkTexture);
-    DestroyTextureBatch(&state.chunkBatch);
     DestroyRenderPass(&state.chunkPass);
     DestroyWorld(&state.world);
     sg_shutdown();

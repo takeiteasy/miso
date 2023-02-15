@@ -13,3 +13,5 @@
 #include "sokol_glue.h"
 #include "sokol_args.h"
 #include "sokol_time.h"
+#define HASHMAP_IMPL
+#include "hashmap.h"

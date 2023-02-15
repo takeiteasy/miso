@@ -9,6 +9,7 @@
 #define renderer_h
 #include "linalgb.h"
 #include "bitmap.h"
+#include "hashmap.h"
 
 #include "sokol_gfx.h"
 #include "sokol_app.h"
@@ -30,30 +31,31 @@ typedef struct {
     Vertex *vertices;
     int maxVertices, vertexCount;
     sg_bindings bind;
-    Vec2 size;
+    Texture texture;
 } TextureBatch;
 
+typedef struct hashmap Hashmap;
 typedef struct RenderPass RenderPass;
 typedef void(*RenderPassCb)(RenderPass*);
+
+typedef struct {
+    const char *name;
+    TextureBatch batch;
+} TextureBucket;
+
 struct RenderPass {
     Vec2 size;
     sg_pass_action pass_action;
     sg_pipeline pip;
     RenderPassCb cb;
+    Hashmap *textures;
 };
-
-Texture LoadTexture(const char *path);
-Texture NewTexture(int w, int h);
-void DestroyTexture(Texture *texture);
-
-TextureBatch NewTextureBatch(Texture *texture, int maxVertices);
-void ResetTextureBatch(TextureBatch *batch) ;
-void TextureBatchRender(TextureBatch *batch, Vec2 position, Vec2 size, Vec2 scale, float rotation, Rect clip);
-void CommitTextureBatch(TextureBatch *batch);
-void DestroyTextureBatch(TextureBatch *batch);
 
 RenderPass NewRenderPass(int w, int h, RenderPassCb cb);
 void RunRenderPass(RenderPass *pass);
+void RenderPassNewBatch(RenderPass *pass, const char *path, int maxVertices);
+TextureBatch* RenderPassGetBatch(RenderPass *pass, const char *path);
+void TextureBatchRender(TextureBatch *batch, Vec2 position, Vec2 size, Vec2 scale, float rotation, Rect clip);
 void DestroyRenderPass(RenderPass *pass);
 
 #endif /* renderer_h */
