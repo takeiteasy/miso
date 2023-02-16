@@ -8,7 +8,7 @@
 #ifndef input_h
 #define input_h
 #include "sokol_app.h"
-#include "linalgb.h"
+#include "maths.h"
 
 void InputHandler(const sapp_event *e);
 void ResetInputHandler(void);

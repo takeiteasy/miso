@@ -65,11 +65,12 @@
         }               \
     } while (0)
 
-Entity EcsSystem   = EcsNilEntity;
-Entity EcsPrefab   = EcsNilEntity;
-Entity EcsRelation = EcsNilEntity;
-Entity EcsChildOf  = EcsNilEntity;
-Entity EcsTimer    = EcsNilEntity;
+Entity EcsEntityName = EcsNilEntity;
+Entity EcsSystem     = EcsNilEntity;
+Entity EcsPrefab     = EcsNilEntity;
+Entity EcsRelation   = EcsNilEntity;
+Entity EcsChildOf    = EcsNilEntity;
+Entity EcsTimer      = EcsNilEntity;
 
 typedef struct {
     Entity *sparse;
@@ -242,16 +243,21 @@ static void UpdateTimer(Query *query) {
     }
 }
 
+typedef struct {
+    uint64_t hash;
+} Name;
+
 World* EcsNewWorld(void) {
     World *result = malloc(sizeof(World));
     *result = (World){0};
     result->nextAvailableId = EcsNil;
     
-    EcsSystem   = ECS_COMPONENT(result, System);
-    EcsPrefab   = ECS_COMPONENT(result, Prefab);
-    EcsRelation = ECS_COMPONENT(result, Relation);
-    EcsChildOf  = ECS_TAG(result);
-    EcsTimer    = ECS_COMPONENT(result, Timer);
+    EcsSystem     = ECS_COMPONENT(result, System);
+    EcsPrefab     = ECS_COMPONENT(result, Prefab);
+    EcsRelation   = ECS_COMPONENT(result, Relation);
+    EcsChildOf    = ECS_TAG(result);
+    EcsTimer      = ECS_COMPONENT(result, Timer);
+    EcsEntityName = ECS_COMPONENT(result, Name);
     ECS_SYSTEM(result, UpdateTimer, EcsTimer);
     
     return result;
@@ -288,6 +294,178 @@ void DestroyWorld(World **world) {
 }
 #undef X
 
+static EcsStorage* EcsFind(World *world, Entity e) {
+    for (int i = 0; i < world->sizeOfStorages; i++)
+        if (ENTITY_ID(world->storages[i]->componentId) == ENTITY_ID(e))
+            return world->storages[i];
+    return NULL;
+}
+
+//-----------------------------------------------------------------------------
+// SipHash reference C implementation
+//
+// Copyright (c) 2012-2016 Jean-Philippe Aumasson
+// <jeanphilippe.aumasson@gmail.com>
+// Copyright (c) 2012-2014 Daniel J. Bernstein <djb@cr.yp.to>
+//
+// To the extent possible under law, the author(s) have dedicated all copyright
+// and related and neighboring rights to this software to the public domain
+// worldwide. This software is distributed without any warranty.
+//
+// You should have received a copy of the CC0 Public Domain Dedication along
+// with this software. If not, see
+// <http://creativecommons.org/publicdomain/zero/1.0/>.
+//
+// default: SipHash-2-4
+//-----------------------------------------------------------------------------
+static uint64_t SIP64(const uint8_t *in, const size_t inlen, uint64_t seed) {
+#define U8TO64_LE(p)                                            \
+    {(((uint64_t)((p)[0])) | ((uint64_t)((p)[1]) << 8) |        \
+      ((uint64_t)((p)[2]) << 16) | ((uint64_t)((p)[3]) << 24) | \
+      ((uint64_t)((p)[4]) << 32) | ((uint64_t)((p)[5]) << 40) | \
+      ((uint64_t)((p)[6]) << 48) | ((uint64_t)((p)[7]) << 56))}
+#define U64TO8_LE(p, v)                            \
+    {                                              \
+        U32TO8_LE((p), (uint32_t)((v)));           \
+        U32TO8_LE((p) + 4, (uint32_t)((v) >> 32)); \
+    }
+#define U32TO8_LE(p, v)                \
+    {                                  \
+        (p)[0] = (uint8_t)((v));       \
+        (p)[1] = (uint8_t)((v) >> 8);  \
+        (p)[2] = (uint8_t)((v) >> 16); \
+        (p)[3] = (uint8_t)((v) >> 24); \
+    }
+#define ROTL(x, b) (uint64_t)(((x) << (b)) | ((x) >> (64 - (b))))
+#define SIPROUND           \
+    {                      \
+        v0 += v1;          \
+        v1 = ROTL(v1, 13); \
+        v1 ^= v0;          \
+        v0 = ROTL(v0, 32); \
+        v2 += v3;          \
+        v3 = ROTL(v3, 16); \
+        v3 ^= v2;          \
+        v0 += v3;          \
+        v3 = ROTL(v3, 21); \
+        v3 ^= v0;          \
+        v2 += v1;          \
+        v1 = ROTL(v1, 17); \
+        v1 ^= v2;          \
+        v2 = ROTL(v2, 32); \
+    }
+    uint64_t k = U8TO64_LE((uint8_t *)&seed);
+    uint64_t v3 = UINT64_C(0x7465646279746573) ^ k;
+    uint64_t v2 = UINT64_C(0x6c7967656e657261) ^ k;
+    uint64_t v1 = UINT64_C(0x646f72616e646f6d) ^ k;
+    uint64_t v0 = UINT64_C(0x736f6d6570736575) ^ k;
+    const uint8_t *end = in + inlen - (inlen % sizeof(uint64_t));
+    for (; in != end; in += 8) {
+        uint64_t m = U8TO64_LE(in);
+        v3 ^= m;
+        SIPROUND;
+        SIPROUND;
+        v0 ^= m;
+    }
+    const int left = inlen & 7;
+    uint64_t b = ((uint64_t)inlen) << 56;
+    switch (left) {
+    case 7:
+        b |= ((uint64_t)in[6]) << 48;
+    case 6:
+        b |= ((uint64_t)in[5]) << 40;
+    case 5:
+        b |= ((uint64_t)in[4]) << 32;
+    case 4:
+        b |= ((uint64_t)in[3]) << 24;
+    case 3:
+        b |= ((uint64_t)in[2]) << 16;
+    case 2:
+        b |= ((uint64_t)in[1]) << 8;
+    case 1:
+        b |= ((uint64_t)in[0]);
+        break;
+    case 0:
+        break;
+    }
+    v3 ^= b;
+    SIPROUND;
+    SIPROUND;
+    v0 ^= b;
+    v2 ^= 0xff;
+    SIPROUND;
+    SIPROUND;
+    SIPROUND;
+    SIPROUND;
+    b = v0 ^ v1 ^ v2 ^ v3;
+    uint64_t out = 0;
+    U64TO8_LE((uint8_t *)&out, b);
+    return out;
+}
+
+static uint64_t Hash(const char *string) {
+    return SIP64((const void*)string, (int)strlen(string), 0);
+}
+
+static bool CheckNameUnique(World *world, uint64_t hash) {
+    EcsStorage *names = EcsFind(world, EcsEntityName);
+    for (size_t i = 0; i < world->sizeOfEntities; i++) {
+        Entity e = world->entities[i];
+        if (!StorageHas(names, e))
+            continue;
+        Name *entityName = StorageGet(names, e);
+        if (entityName->hash == hash)
+            return false;
+    }
+    return true;
+}
+
+bool EcsName(World *world, Entity entity, const char *name) {
+    ASSERT(world);
+    ECS_ASSERT(EcsIsValid(world, entity), Entity, entity);
+    ASSERT(!!name);
+    
+    Name *result = NULL;
+    uint64_t nameHash = Hash(name);
+    EcsStorage *names = EcsFind(world, EcsEntityName);
+    if (!names || !names->data || !names->sizeOfData)
+        goto NEW_NAME;
+    for (size_t i = 0; i < world->sizeOfEntities; i++) {
+        Entity e = world->entities[i];
+        if (!StorageHas(names, e))
+            continue;
+        if (ENTITY_CMP(e, entity))
+            if (CheckNameUnique(world, nameHash)) {
+                result = StorageGet(names, e);
+                goto SET_NAME;
+            }
+        Name *entityName = StorageGet(names, e);
+        if (entityName->hash == nameHash)
+            return false;
+    }
+    
+NEW_NAME:
+    EcsAttach(world, entity, EcsEntityName);
+    result = EcsGet(world, entity, EcsEntityName);
+SET_NAME:
+    result->hash = nameHash;
+    return true;
+}
+
+Entity EcsEntityNamed(World *world, const char *name) {
+    uint64_t nameHash = Hash(name);
+    EcsStorage *names = EcsFind(world, EcsEntityName);
+    for (size_t i = 0; i < world->sizeOfEntities; i++) {
+        Entity e = world->entities[i];
+        if (!StorageHas(names, e))
+            continue;
+        Name *entityName = StorageGet(names, e);
+        if (entityName->hash == nameHash)
+            return e;
+    }
+    return EcsNilEntity;
+}
+
 bool EcsIsValid(World *world, Entity e) {
     ASSERT(world);
     uint32_t id = ENTITY_ID(e);
@@ -313,13 +491,6 @@ static Entity EcsNewEntityType(World *world, uint8_t type) {
 
 Entity EcsNewEntity(World *world) {
     return EcsNewEntityType(world, EcsEntityType);
-}
-
-static EcsStorage* EcsFind(World *world, Entity e) {
-    for (int i = 0; i < world->sizeOfStorages; i++)
-        if (ENTITY_ID(world->storages[i]->componentId) == ENTITY_ID(e))
-            return world->storages[i];
-    return NULL;
 }
 
 static EcsStorage* EcsAssure(World *world, Entity componentId, size_t sizeOfComponent) {

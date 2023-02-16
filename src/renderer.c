@@ -34,7 +34,7 @@ static TextureBatch NewTextureBatch(const char *path, int maxVertices) {
         .vertices = malloc(6 * maxVertices * sizeof(Vertex)),
         .maxVertices = maxVertices,
         .vertexCount = 0,
-        .bind = {
+        .binding = {
             .vertex_buffers[0] = sg_make_buffer(&(sg_buffer_desc) {
                 .usage = SG_USAGE_STREAM,
                 .size = 6 * maxVertices * sizeof(Vertex)
@@ -53,17 +53,17 @@ static void ResetTextureBatch(TextureBatch *batch) {
 static void CommitTextureBatch(TextureBatch *batch) {
     if (!batch || !batch->vertexCount)
         return;
-    sg_update_buffer(batch->bind.vertex_buffers[0], &(sg_range) {
+    sg_update_buffer(batch->binding.vertex_buffers[0], &(sg_range) {
         .ptr = batch->vertices,
         .size = 6 * batch->vertexCount * sizeof(Vertex)
     });
-    sg_apply_bindings(&batch->bind);
+    sg_apply_bindings(&batch->binding);
     sg_draw(0, 6 * batch->vertexCount, 1);
 }
 
 static void DestroyTextureBatch(TextureBatch *batch) {
-    if (batch && sg_query_buffer_state(batch->bind.vertex_buffers[0]) != SG_RESOURCESTATE_INVALID) {
-        sg_destroy_buffer(batch->bind.vertex_buffers[0]);
+    if (batch && sg_query_buffer_state(batch->binding.vertex_buffers[0]) != SG_RESOURCESTATE_INVALID) {
+        sg_destroy_buffer(batch->binding.vertex_buffers[0]);
         if (batch->vertices)
             free(batch->vertices);
         if (sg_query_image_state(batch->texture.ref) != SG_RESOURCESTATE_INVALID)
@@ -93,7 +93,7 @@ RenderPass NewRenderPass(int w, int h) {
         .pass_action = (sg_pass_action) {
             .colors[0] = { .action=SG_ACTION_CLEAR, .value={0.f, 0.f, 0.f, 1.f} }
         },
-        .pip = sg_make_pipeline(&(sg_pipeline_desc) {
+        .pipeline = sg_make_pipeline(&(sg_pipeline_desc) {
             .primitive_type = SG_PRIMITIVETYPE_TRIANGLES,
             .shader = sg_make_shader(sprite_program_shader_desc(sg_query_backend())),
             .layout = {
@@ -134,7 +134,7 @@ bool CommitBatches(const void *item, void*_) {
 
 void RenderPassBegin(RenderPass *pass) {
     sg_begin_default_pass(&pass->pass_action, pass->size.x == 0.f ? sapp_width() : pass->size.x, pass->size.y == 0.f ? sapp_width() : pass->size.y);
-    sg_apply_pipeline(pass->pip);
+    sg_apply_pipeline(pass->pipeline);
     hashmap_scan(pass->textures, ResetBatches, NULL);
 }
 
@@ -203,8 +203,8 @@ void TextureBatchRender(TextureBatch *batch, Vec2 position, Vec2 size, Vec2 scal
 }
 
 void DestroyRenderPass(RenderPass *pass) {
-    if (sg_query_pipeline_state(pass->pip) != SG_RESOURCESTATE_INVALID) {
-        sg_destroy_pipeline(pass->pip);
+    if (sg_query_pipeline_state(pass->pipeline) != SG_RESOURCESTATE_INVALID) {
+        sg_destroy_pipeline(pass->pipeline);
         hashmap_free(pass->textures);
         memset(pass, 0, sizeof(RenderPass));
     }

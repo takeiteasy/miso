@@ -1,12 +1,12 @@
 //
-//  linalgb.h
+//  maths.h
 //  colony
 //
 //  Created by George Watson on 08/02/2023.
 //
 
-#ifndef linalgb_h
-#define linalgb_h
+#ifndef maths_h
+#define maths_h
 #include <math.h>
 #include <stdbool.h>
 
@@ -14,9 +14,13 @@
 #define MAX(a, b) (a > b ? a : b)
 #define CLAMP(n, min, max) (MIN(MAX(n, min), max))
 
+#define FLT_EPSILON .000001f
+
 typedef int Vec2i __attribute__((ext_vector_type(2)));
 typedef float Vec2 __attribute__((ext_vector_type(2)));
 typedef float Vec4 __attribute__((ext_vector_type(4)));
+
+typedef Vec2 Position;
 
 typedef struct {
     Vec2 pos;
@@ -24,6 +28,7 @@ typedef struct {
 } Rect;
 
 bool DoRectsCollide(Rect a, Rect b);
-float Vec2Dist(Vec2 a, Vec2 b);
+float DistanceBetween(Vec2 a, Vec2 b);
+Vec2 MoveTowards(Vec2 position, Vec2 target, float speed);
 
-#endif /* linalgb_h */
+#endif /* maths_h */

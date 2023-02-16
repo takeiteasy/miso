@@ -7,10 +7,10 @@
 
 #include "chunk.h"
 
-Vec2i CalcChunk(int x, int y) {
+Vec2i CalcChunk(Vec2 position) {
     return (Vec2i) {
-        (int)floorf(x / (float)CHUNK_REAL_WIDTH),
-        (int)floorf(y / (float)CHUNK_REAL_HEIGHT)
+        (int)floorf(position.x / (float)CHUNK_REAL_WIDTH),
+        (int)floorf(position.y / (float)CHUNK_REAL_HEIGHT)
     };
 }
 
@@ -54,7 +54,7 @@ static int ChunkIndex(int x, int y) {
     return _x >= _y ? _x * _x + _x + _y : _x + _y * _y;
 }
 
-void RenderChunk(World *world, Chunk *chunk, Vec2 cameraPosition, Vec2 cameraSize, TextureBatch *batch) {
+void RenderChunk(Chunk *chunk, Vec2 cameraPosition, Vec2 cameraSize, TextureBatch *batch) {
     Vec2 chunkPosition = (Vec2){chunk->x * CHUNK_WIDTH, chunk->y * CHUNK_HEIGHT};
     Vec2 offset = chunkPosition * (Vec2){TILE_WIDTH,HALF_TILE_HEIGHT} + (-cameraPosition + cameraSize / 2);
     Rect viewportBounds = {{0, 0}, cameraSize};

@@ -25,6 +25,7 @@
 
 #ifndef ecs_h
 #define ecs_h
+#include "sokol_time.h"
 #include <stdio.h>
 #include <assert.h>
 #include <stdbool.h>
@@ -33,7 +34,6 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
-#include "sokol_time.h"
 
 // Taken from: https://gist.github.com/61131/7a22ac46062ee292c2c8bd6d883d28de
 #define N_ARGS(...) _NARG_(__VA_ARGS__, _RSEQ())
@@ -139,6 +139,8 @@ Entity EcsNewPrefab(World *world, size_t sizeOfComponents, ...);
 Entity EcsNewTimer(World *world, int interval, bool enable, TimerCb cb, void *userdata);
 void DestroyEntity(World *world, Entity entity);
 
+bool EcsName(World *world, Entity entity, const char *name);
+Entity EcsEntityNamed(World *world, const char *name);
 bool EcsIsValid(World *world, Entity entity);
 bool EcsHas(World *world, Entity entity, Entity component);
 void EcsAttach(World *world, Entity entity, Entity component);
@@ -161,6 +163,7 @@ void EcsStep(World *world);
 void EcsQuery(World *world, SystemCb cb, void *userdata, Entity *components, size_t sizeOfComponents);
 void* EcsQueryField(Query *query, size_t index);
 
+extern Entity EcsEntityName;
 extern Entity EcsSystem;
 extern Entity EcsPrefab;
 extern Entity EcsRelation;

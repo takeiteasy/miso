@@ -7,7 +7,7 @@
 
 #ifndef renderer_h
 #define renderer_h
-#include "linalgb.h"
+#include "maths.h"
 #include "bitmap.h"
 #include "hashmap.h"
 
@@ -30,7 +30,7 @@ typedef struct {
 typedef struct {
     Vertex *vertices;
     int maxVertices, vertexCount;
-    sg_bindings bind;
+    sg_bindings binding;
     Texture texture;
 } TextureBatch;
 
@@ -46,7 +46,7 @@ typedef struct {
 struct RenderPass {
     Vec2 size;
     sg_pass_action pass_action;
-    sg_pipeline pip;
+    sg_pipeline pipeline;
     Hashmap *textures;
 };
 

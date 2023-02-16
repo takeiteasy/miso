@@ -27,7 +27,7 @@ Nothing to see yet
 ### References
 
 - [erkkah/tigr](https://github.com/erkkah/tigr/blob/master/src/tigr_loadpng.c) (UNLICENSE)
-    - Slight modified .png loader adapted from tigr_loadpng.c
+    - Extracted and slightly modified .png loader from tigr_loadpng.c
 
 ### Assets
 
