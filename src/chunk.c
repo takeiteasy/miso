@@ -37,12 +37,13 @@ ChunkState CalcChunkState(int x, int y, Vec2 cameraPosition, Vec2 cameraSize) {
     return DoRectsCollide(cameraRect, chunkRect) ? CHUNK_VISIBLE : DoRectsCollide(reservedRect, chunkRect) ? CHUNK_RESERVED : CHUNK_FREE;
 }
 
-void AddChunk(World *world, int x, int y) {
+Entity AddChunk(World *world, int x, int y) {
     Entity e = EcsNewEntity(world);
     EcsAttach(world, e, EcsChunkComponent);
     Chunk *chunk = EcsGet(world, e, EcsChunkComponent);
     chunk->x = x;
     chunk->y = y;
+    return e;
 }
 
 static int IntToIndex(int i) {
@@ -66,6 +67,6 @@ void RenderChunk(Chunk *chunk, Vec2 cameraPosition, Vec2 cameraSize, TextureBatc
             Rect bounds = {{px, py}, {TILE_WIDTH, TILE_HEIGHT}};
             if (!DoRectsCollide(viewportBounds, bounds))
                 continue;
-            TextureBatchRender(batch, (Vec2){px,py}, (Vec2){TILE_WIDTH,TILE_HEIGHT}, (Vec2){1.f,1.f}, cameraSize, 0.f, (Rect){{ChunkIndex(chunk->x, chunk->y) % 4 * 32, 0}, {TILE_WIDTH, TILE_HEIGHT}});
+            TextureBatchRender(batch, (Vec2){px,py}, (Vec2){TILE_WIDTH,TILE_HEIGHT}, (Vec2){1.f,1.f}, cameraSize, 0.f, (Rect){{chunk->tiles[CHUNK_AT(x, y)], 0}, {TILE_WIDTH, TILE_HEIGHT}});
         }
 }

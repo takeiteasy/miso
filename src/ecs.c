@@ -233,13 +233,101 @@ struct World {
     uint32_t nextAvailableId;
 };
 
+#if defined(_WIN32)
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
+#elif defined(__APPLE__) && defined(__MACH__)
+#include <mach/mach_time.h>
+#elif defined(__EMSCRIPTEN__)
+#include <emscripten/emscripten.h>
+#else /* anything else, this will need more care for non-Linux platforms */
+#ifdef ESP8266
+// On the ESP8266, clock_gettime ignores the first argument and CLOCK_MONOTONIC isn't defined
+#define CLOCK_MONOTONIC 0
+#endif
+#include <time.h>
+#endif
+
+static struct {
+    bool initalized;
+#if defined(_WIN32)
+    uint32_t initialized;
+    LARGE_INTEGER freq;
+    LARGE_INTEGER start;
+#elif defined(__APPLE__) && defined(__MACH__)
+    uint32_t initialized;
+    mach_timebase_info_data_t timebase;
+    uint64_t start;
+#elif defined(__EMSCRIPTEN__)
+    uint32_t initialized;
+    double start;
+#else /* anything else, this will need more care for non-Linux platforms */
+    uint32_t initialized;
+    uint64_t start;
+#endif
+} Time = {
+    .initalized = false
+};
+
+static void InitTimers(void) {
+    memset(&Time, 0, sizeof(Time));
+    Time.initalized = true;
+#if defined(_WIN32)
+    QueryPerformanceFrequency(&Time.freq);
+    QueryPerformanceCounter(&Time.start);
+#elif defined(__APPLE__) && defined(__MACH__)
+    mach_timebase_info(&Time.timebase);
+    Time.start = mach_absolute_time();
+#elif defined(__EMSCRIPTEN__)
+    Time.start = emscripten_get_now();
+#else
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    Time.start = (uint64_t)ts.tv_sec*1000000000 + (uint64_t)ts.tv_nsec;
+#endif
+}
+
+static int64_t int64MulDiv(int64_t value, int64_t numer, int64_t denom) {
+    int64_t q = value / denom;
+    int64_t r = value % denom;
+    return q * numer + r * numer / denom;
+}
+
+static uint64_t now(void) {
+    assert(Time.initalized);
+    uint64_t result = 0L;
+#if defined(_WIN32)
+    LARGE_INTEGER qpc_t;
+    QueryPerformanceCounter(&qpc_t);
+    result = (uint64_t)int64MulDiv(qpc_t.QuadPart - Time.start.QuadPart, 1000000000, Time.freq.QuadPart);
+#elif defined(__APPLE__) && defined(__MACH__)
+    const uint64_t mach_now = mach_absolute_time() - Time.start;
+    result = (uint64_t)int64MulDiv((int64_t)mach_now, (int64_t)Time.timebase.numer, (int64_t)Time.timebase.denom);
+#elif defined(__EMSCRIPTEN__)
+    double js_now = emscripten_get_now() - Time.start;
+    result = (uint64_t) (js_now * 1000000.0);
+#else
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    result = ((uint64_t)ts.tv_sec*1000000000 + (uint64_t)ts.tv_nsec) - Time.start;
+#endif
+    return result;
+}
+
+static uint64_t diff(uint64_t new_ticks, uint64_t old_ticks) {
+    return new_ticks > old_ticks ? new_ticks - old_ticks : 1;
+}
+
 static void UpdateTimer(Query *query) {
     Timer *timer = ECS_FIELD(query, Timer, 0);
     if (!timer->enabled)
         return;
-    if (stm_ms(stm_since(timer->start)) > timer->interval) {
-//        timer->cb(timer->userdata);
-        timer->start = stm_now();
+    uint64_t time = now();
+    if (diff(time, timer->start) / 1000000.0 > timer->interval) {
+        timer->cb(timer->userdata);
+        timer->start = now();
     }
 }
 
@@ -248,6 +336,9 @@ typedef struct {
 } Name;
 
 World* EcsNewWorld(void) {
+    if (!Time.initalized)
+        InitTimers();
+    
     World *result = malloc(sizeof(World));
     *result = (World){0};
     result->nextAvailableId = EcsNil;
@@ -551,7 +642,7 @@ Entity EcsNewTimer(World *world, int interval, bool enable, TimerCb cb, void *us
     Entity e = EcsNewEntityType(world, EcsTimerType);
     EcsAttach(world, e, EcsTimer);
     Timer *timer = EcsGet(world, e, EcsTimer);
-    timer->start = stm_now();
+    timer->start = now();
     timer->enabled = enable;
     timer->interval = interval > 1 ? interval : 1;
     timer->cb = cb;
@@ -732,7 +823,7 @@ void EcsEnableTimer(World *world, Entity timer) {
     ECS_ASSERT(ENTITY_ISA(timer, Timer), Entity, timer);
     Timer *t = EcsGet(world, timer, EcsTimer);
     t->enabled = true;
-    t->start = stm_now();
+    t->start = now();
 }
 
 void EcsDisableTimer(World *world, Entity timer) {

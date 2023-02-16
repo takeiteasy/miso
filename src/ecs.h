@@ -25,7 +25,6 @@
 
 #ifndef ecs_h
 #define ecs_h
-#include "sokol_time.h"
 #include <stdio.h>
 #include <assert.h>
 #include <stdbool.h>
