@@ -12,6 +12,7 @@
 #include <float.h>
 #include <math.h>
 #include <stdlib.h>
+#include <stdbool.h>
 
 #define _PRNG_RAND_SSIZE ((UINT16_C(1))<<6)
 typedef struct {
@@ -25,6 +26,6 @@ Random NewRandom(uint64_t seed);
 float RandomFloat(Random *r);
 
 float Perlin(float x, float y, float z);
-unsigned char* PerlinFBM(int w, int h, float xoff, float yoff, float scale, float lacunarity, float gain, int octaves, Random *rng);
+unsigned char* PerlinFBM(int w, int h, float xoff, float yoff, float scale, float lacunarity, float gain, int octaves, bool fadeOut, Random *rng);
 
 #endif /* random_h */

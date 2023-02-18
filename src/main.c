@@ -24,6 +24,13 @@
 #define CAMERA_SPEED 10.f
 #define CAMERA_CHASE_SPEED .1f
 
+//! TODO: Camera zooming
+//! TODO: Queue InitChunk on seperate thread
+//! TODO: Loading screen
+//! TODO: Loading and saving chunks
+//! TODO: Loading and saving game state
+//! TODO: Sprite animations
+
 static Entity EcsPositionComponent = EcsNilEntity;
 static Entity EcsTargetComponent = EcsNilEntity;
 
@@ -126,7 +133,7 @@ static int CalcTile(unsigned char height) {
 }
 
 static void InitChunk(Chunk *chunk, Random *rng) {
-    unsigned char *heightmap = PerlinFBM(CHUNK_WIDTH, CHUNK_HEIGHT, chunk->x * CHUNK_WIDTH, chunk->y * CHUNK_HEIGHT, 200.f, 2.f, .5f, 16, &state.rng);
+    unsigned char *heightmap = PerlinFBM(CHUNK_WIDTH, CHUNK_HEIGHT, chunk->x * CHUNK_WIDTH, chunk->y * CHUNK_HEIGHT, 200.f, 2.f, .5f, 16, true, &state.rng);
     
     for (int x = 0; x < CHUNK_WIDTH; x++)
         for (int y = 0; y < CHUNK_HEIGHT; y++) {

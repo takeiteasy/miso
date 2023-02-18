@@ -162,7 +162,7 @@ static float Remap(float value, float from1, float to1, float from2, float to2) 
     return (value - from1) / (to1 - from1) * (to2 - from2) + from2;
 }
 
-unsigned char* PerlinFBM(int w, int h, float xoff, float yoff, float scale, float lacunarity, float gain, int octaves, Random *rng) {
+unsigned char* PerlinFBM(int w, int h, float xoff, float yoff, float scale, float lacunarity, float gain, int octaves, bool fadeOut, Random *rng) {
     float z = RandomFloat(rng);
     float min = FLT_MAX, max = FLT_MIN;
     float grid[w * h];
@@ -189,7 +189,7 @@ unsigned char* PerlinFBM(int w, int h, float xoff, float yoff, float scale, floa
     for (int x = 0; x < w; x++)
         for (int y = 0; y < h; y++) {
             float height = 255.f - (255.f * Remap(grid[y * w + x], min, max, 0, 1.f));
-            float grad = sqrtf(powf(w / 2 - x, 2.f) + powf(h / 2 - y, 2.f));
+            float grad = fadeOut ? sqrtf(powf(w / 2 - x, 2.f) + powf(h / 2 - y, 2.f)) : 0.f;
             float final = height - grad;
             result[y * w + x] = (unsigned char)final;
         }

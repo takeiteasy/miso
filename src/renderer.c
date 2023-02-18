@@ -14,6 +14,10 @@ static Texture LoadTexture(const char *path) {
         .ref = sg_make_image(&(sg_image_desc) {
             .width = image.w,
             .height = image.h,
+            .wrap_u = SG_WRAP_REPEAT,
+            .wrap_v = SG_WRAP_REPEAT,
+            .min_filter = SG_FILTER_NEAREST_MIPMAP_NEAREST,
+            .mag_filter = SG_FILTER_NEAREST_MIPMAP_NEAREST,
             .data.subimage[0][0] = (sg_range){.ptr=image.buf, .size=image.w * image.h * sizeof(int)}
         })
     };
@@ -173,7 +177,7 @@ void TextureBatchRender(TextureBatch *batch, Vec2 position, Vec2 size, Vec2 scal
         quad[j] = (Vec2) {
             vw * quad[j].x + -1.f,
             vh * quad[j].y +  1.f
-        };
+        } * 2.f;
     
     float iw = 1.f/batch->texture.size.x, ih = 1.f/batch->texture.size.y;
     float tl = clip.pos.x*iw;
