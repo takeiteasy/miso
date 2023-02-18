@@ -70,3 +70,7 @@ void RenderChunk(Chunk *chunk, Vec2 cameraPosition, Vec2 cameraSize, TextureBatc
             TextureBatchRender(batch, (Vec2){px,py}, (Vec2){TILE_WIDTH,TILE_HEIGHT}, (Vec2){1.f,1.f}, cameraSize, 0.f, (Rect){{chunk->tiles[CHUNK_AT(x, y)], 0}, {TILE_WIDTH, TILE_HEIGHT}});
         }
 }
+
+void DestroyChunk(Chunk *chunk) {
+    // ...
+}

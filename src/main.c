@@ -19,6 +19,7 @@
 #include "random.h"
 
 #include <stdbool.h>
+#include <float.h>
 
 #define CAMERA_SPEED 10.f
 #define CAMERA_CHASE_SPEED .1f
@@ -77,6 +78,7 @@ static void UpdateChunks(Query *query) {
     ChunkState chunkState = CalcChunkState(chunk->x, chunk->y, cameraPosition, cameraSize);
     switch (chunkState) {
         case CHUNK_FREE:
+            DestroyChunk(chunk);
             DestroyEntity(state.world, query->entity);
             break;
         case CHUNK_VISIBLE:
@@ -108,6 +110,39 @@ static void FlushPasses(Query *query) {
     RenderPassEnd(pass);
 }
 
+static int CalcTile(unsigned char height) {
+    switch (MIN(255, height)) {
+        case 26 ... 37:
+            return 0;
+        case 38 ... 70:
+            return 64;
+        case 71 ... 100:
+            return 32;
+        case 101 ... 113:
+            return 96;
+        default:
+            return 0;
+    }
+}
+
+static void InitChunk(Chunk *chunk, Random *rng) {
+    unsigned char *heightmap = PerlinFBM(CHUNK_WIDTH, CHUNK_HEIGHT, chunk->x * CHUNK_WIDTH, chunk->y * CHUNK_HEIGHT, 200.f, 2.f, .5f, 16, &state.rng);
+    
+    for (int x = 0; x < CHUNK_WIDTH; x++)
+        for (int y = 0; y < CHUNK_HEIGHT; y++) {
+            int i = y * CHUNK_WIDTH + x;
+            chunk->tiles[i] = CalcTile(heightmap[i]);
+        }
+    
+    free(heightmap);
+}
+
+static void NewChunk(int x, int y) {
+    Entity entity = AddChunk(state.world, x, y);
+    Chunk *chunk = EcsGet(state.world, entity, EcsChunkComponent);
+    InitChunk(chunk, &state.rng);
+}
+
 static void ChunkSearch(Query *query) {
     Position *cameraPosition = EcsGet(state.world, query->entity, EcsPositionComponent);
     Vec2i cameraChunk = CalcChunk(*cameraPosition);
@@ -123,7 +158,7 @@ static void ChunkSearch(Query *query) {
                     break;
                 }
             if (!alreadyExists)
-                AddChunk(state.world, x, y);
+                NewChunk(x, y);
         }
 }
 
@@ -136,54 +171,12 @@ static Entity AddPass(int w, int h, const char *name) {
     return pass;
 }
 
-static void InitChunk(Chunk *chunk, Random *rng) {
-    float z_seed = RandomFloat(rng);
-    float scale = 200.f;
-    float lacunarity = 2.f;
-    float gain = .5f;
-    int octaves = 16;
-    bool circle = false;
-    
-    for (int x = 0; x < CHUNK_WIDTH; ++x)
-        for (int y = 0; y < CHUNK_HEIGHT; ++y) {
-            float freq = 2.f,
-            amp  = 1.0f,
-            tot  = 0.0f,
-            sum  = 0.0f;
-            for (int i = 0; i < octaves; ++i) {
-                sum  += Perlin((x / scale) * freq, (y / scale) * freq, z_seed) * amp;
-                tot  += amp;
-                freq *= lacunarity;
-                amp  *= gain;
-            }
-            
-            float d  = CHUNK_WIDTH * .5f;
-            float dx = fabs(x - d);
-            float dy = fabs(y - d);
-            float grad = powf((circle ? sqrt(dx * dx + dy * dy) : MAX(dx, dy)) / (d - 10.0f), 2);
-            sum = CLAMP((sum / tot), 0., 1.f) * MAX(0.0f, 1.0f - grad);
-            
-            if (sum < 0.1)
-                chunk->tiles[CHUNK_AT(x, y)] = 0;
-            else if (sum < 0.12)
-                chunk->tiles[CHUNK_AT(x, y)] = 0; // Shallow water?
-            else if (sum < 0.15)
-                chunk->tiles[CHUNK_AT(x, y)] = 64;
-            else if (sum < 0.30)
-                chunk->tiles[CHUNK_AT(x, y)] = 32;
-            else if (sum < 0.44)
-                chunk->tiles[CHUNK_AT(x, y)] = 96;
-            else
-                chunk->tiles[CHUNK_AT(x, y)] = 0;
-        }
-}
-
 static void init(void) {
     sg_setup(&(sg_desc){.context=sapp_sgcontext()});
     stm_setup();
     
     state.world = EcsNewWorld();
-    state.rng = NewRandom(0);
+    
     EcsPositionComponent = ECS_COMPONENT(state.world, Vec2);
     EcsTargetComponent = ECS_COMPONENT(state.world, Vec2);
     EcsNPC = ECS_TAG(state.world);
@@ -195,7 +188,7 @@ static void init(void) {
     EcsName(state.world, view, "Camera");
     EcsAttach(state.world, view, EcsPositionComponent);
     Position *viewPosition = EcsGet(state.world, view, EcsPositionComponent);
-    *viewPosition = (Vec2){0,0};
+    *viewPosition = (Vec2){CHUNK_WIDTH/2,CHUNK_HEIGHT/2};
     EcsAttach(state.world, view, EcsTargetComponent);
     Vec2 *viewTarget = EcsGet(state.world, view, EcsTargetComponent);
     *viewTarget = *viewPosition;
@@ -213,12 +206,10 @@ static void init(void) {
     state.chunkSearchSystem = ECS_SYSTEM(state.world, ChunkSearch, EcsCamera);
     EcsDisableSystem(state.world, state.chunkSearchSystem);
     
+    state.rng = NewRandom(0);
     for (int x = -1; x < 1; x++)
-        for (int y = -1; y < 1; y++) {
-            Entity entity = AddChunk(state.world, x, y);
-            Chunk *chunk = EcsGet(state.world, entity, EcsChunkComponent);
-            InitChunk(chunk, &state.rng);
-        }
+        for (int y = -1; y < 1; y++)
+            NewChunk(x, y);
 }
 
 static void frame(void) {

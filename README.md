@@ -17,8 +17,6 @@ Nothing to see yet
     - sokol_audio.h
     - sokol_args.h
     - sokol_time.h
-- [edubart/minilua](https://github.com/edubart/minilua/) (MIT)
-    - minilua.h
 - [scottt/debugbreak](https://github.com/scottt/debugbreak/) (BSD-2-Clause)
     - debugbreak.h
 - [tidwall/hashmap.c](https://github.com/tidwall/hashmap.c) (MIT)
@@ -27,7 +25,9 @@ Nothing to see yet
 ### References
 
 - [erkkah/tigr](https://github.com/erkkah/tigr/blob/master/src/tigr_loadpng.c) (UNLICENSE)
-    - Extracted and slightly modified .png loader from tigr_loadpng.c
+    - Extracted and slightly modified .png loading+saving from tigr_loadpng.c+tigr_savepng.c
+- [rdadolf/prng](https://github.com/rdadolf/prng) (Public Domain)
+    - Only superficial changes made 
 
 ### Assets
 

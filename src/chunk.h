@@ -43,5 +43,6 @@ Vec2i CalcChunk(Vec2 position);
 ChunkState CalcChunkState(int x, int y, Vec2 cameraPosition, Vec2 cameraSize);
 Entity AddChunk(World *world, int x, int y);
 void RenderChunk(Chunk *chunk, Vec2 cameraPosition, Vec2 cameraSize, TextureBatch *batch);
+void DestroyChunk(Chunk *chunk);
 
 #endif /* chunk_h */

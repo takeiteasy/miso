@@ -12,6 +12,7 @@
 #include <string.h>
 #include <errno.h>
 #include <setjmp.h>
+#include <stdbool.h>
 
 typedef struct {
     int *buf;
@@ -36,5 +37,6 @@ void DestroyBitmap(Bitmap *bitmap);
 void PSet(Bitmap *b, int x, int y, int col);
 int PGet(Bitmap *b, int x, int y);
 Bitmap LoadBitmap(const char *path);
+bool SaveBitmap(Bitmap *bitmap, const char *path);
 
 #endif /* bitmap_h */

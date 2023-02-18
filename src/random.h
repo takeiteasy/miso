@@ -8,22 +8,23 @@
 #ifndef random_h
 #define random_h
 #include <time.h>
+#include <stddef.h>
+#include <float.h>
+#include <math.h>
+#include <stdlib.h>
 
+#define _PRNG_RAND_SSIZE ((UINT16_C(1))<<6)
 typedef struct {
-    unsigned int seed;
-    int p1, p2;
-    unsigned int buffer[17];
+    uint64_t seed;
+    uint64_t s[_PRNG_RAND_SSIZE]; // Lags
+    uint_fast16_t i; // Location of the current lag
+    uint_fast16_t c; // Exhaustion count
 } Random;
 
-Random NewRandom(unsigned int s);
-unsigned int RandomBits(Random *r);
+Random NewRandom(uint64_t seed);
 float RandomFloat(Random *r);
-double RandomDouble(Random *r);
-int RandomInt(Random *r, int max);
-float RandomFloatRange(Random *r, float min, float max);
-double RandomDoubleRange(Random *r, double min, double max);
-int RandomIntRange(Random *r, int min, int max);
 
 float Perlin(float x, float y, float z);
+unsigned char* PerlinFBM(int w, int h, float xoff, float yoff, float scale, float lacunarity, float gain, int octaves, Random *rng);
 
 #endif /* random_h */
