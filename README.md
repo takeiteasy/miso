@@ -17,8 +17,6 @@ Nothing to see yet
     - sokol_audio.h
     - sokol_args.h
     - sokol_time.h
-- [scottt/debugbreak](https://github.com/scottt/debugbreak/) (BSD-2-Clause)
-    - debugbreak.h
 - [tidwall/hashmap.c](https://github.com/tidwall/hashmap.c) (MIT)
     - hashmap.h
     
