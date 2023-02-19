@@ -9,53 +9,45 @@
 #define renderer_h
 #include "maths.h"
 #include "bitmap.h"
+#include "ecs.h"
 #include "hashmap.h"
 
 #include "sokol_gfx.h"
 #include "sokol_app.h"
 #include "sprite.glsl.h"
 
+extern Entity EcsTextureBatchComponent;
+
 #define NoColor (sg_color){0.f,0.f,0.f,1.f}
 
 typedef struct {
     Vec2 position, texcoord;
-    sg_color color;
 } Vertex;
 
-typedef struct {
-    Vec2 size;
-    sg_image ref;
-} Texture;
+typedef sg_image Texture;
 
 typedef struct {
     Vertex *vertices;
     int maxVertices, vertexCount;
     sg_bindings binding;
-    Texture texture;
+    Vec2 size;
 } TextureBatch;
 
-typedef struct hashmap Hashmap;
-typedef struct RenderPass RenderPass;
-typedef void(*RenderPassCb)(RenderPass*);
-
 typedef struct {
-    const char *name;
-    TextureBatch batch;
-} TextureBucket;
+    struct hashmap *map;
+} TextureManager;
 
-struct RenderPass {
-    Vec2 size;
-    sg_pass_action pass_action;
-    sg_pipeline pipeline;
-    Hashmap *textures;
-};
+Texture LoadTexture(const char *path);
+void DestroyTexture(Texture texture);
 
-RenderPass NewRenderPass(int w, int h);
-void RenderPassBegin(RenderPass *pass);
-void RenderPassEnd(RenderPass *pass);
-void RenderPassNewBatch(RenderPass *pass, const char *path, int maxVertices);
-TextureBatch* RenderPassGetBatch(RenderPass *pass, const char *path);
+TextureBatch NewTextureBatch(Texture texture, int maxVertices);
 void TextureBatchRender(TextureBatch *batch, Vec2 position, Vec2 size, Vec2 scale, Vec2 viewportSize, float rotation, Rect clip);
-void DestroyRenderPass(RenderPass *pass);
+void CommitTextureBatch(TextureBatch *batch);
+void DestroyTextureBatch(TextureBatch *batch);
+
+TextureManager NewTextureManager(void);
+void TextureManagerAdd(TextureManager *manager, const char *path);
+Texture TextureManagerGet(TextureManager *manager, const char *path);
+void DestroyTextureManager(TextureManager *manager);
 
 #endif /* renderer_h */

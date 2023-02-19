@@ -38,8 +38,7 @@ static Entity EcsCamera = EcsNilEntity;
 static Entity EcsNPC = EcsNilEntity;
 
 Entity EcsChunkComponent = EcsNilEntity;
-
-static Entity EcsRenderPass = EcsNilEntity;
+Entity EcsTextureBatchComponent = EcsNilEntity;
 
 static struct {
     World *world;
@@ -48,6 +47,11 @@ static struct {
     int chunksSize;
     Entity chunkSearchSystem;
     float delta;
+    TextureManager textures;
+    TextureBatch *chunkTiles;
+    
+    sg_pass_action pass_action;
+    sg_pipeline pipeline;
 } state;
 
 static void UpdateCamera(Query *query) {
@@ -96,25 +100,12 @@ static void UpdateChunks(Query *query) {
     }
 }
 
-static void ResetPasses(Query *query) {
-    RenderPass *pass = ECS_FIELD(query, RenderPass, 0);
-    RenderPassBegin(pass);
-}
-
 static void RenderChunks(Query *query) {
     Chunk *chunk = ECS_FIELD(query, Chunk, 0);
     Entity camera = EcsEntityNamed(state.world, "Camera");
     Vec2 cameraPosition = *(Vec2*)EcsGet(state.world, camera, EcsPositionComponent);
     Vec2 cameraSize = {sapp_width(), sapp_height()};
-    Entity pass = EcsEntityNamed(state.world, "ChunkPass");
-    RenderPass *renderPass = EcsGet(state.world, pass, EcsRenderPass);
-    TextureBatch *batch = RenderPassGetBatch(renderPass, "assets/tiles.png");
-    RenderChunk(chunk, cameraPosition, cameraSize, batch);
-}
-
-static void FlushPasses(Query *query) {
-    RenderPass *pass = ECS_FIELD(query, RenderPass, 0);
-    RenderPassEnd(pass);
+    RenderChunk(chunk, cameraPosition, cameraSize, state.chunkTiles);
 }
 
 static int CalcTile(unsigned char height) {
@@ -169,18 +160,41 @@ static void ChunkSearch(Query *query) {
         }
 }
 
-static Entity AddPass(int w, int h, const char *name) {
-    Entity pass = EcsNewEntity(state.world);
-    EcsAttach(state.world, pass, EcsRenderPass);
-    RenderPass *renderPass = EcsGet(state.world, pass, EcsRenderPass);
-    *renderPass = NewRenderPass(0, 0);
-    EcsName(state.world, pass, name);
-    return pass;
+static void CommitBatches(Query *query) {
+    TextureBatch *batch = ECS_FIELD(query, TextureBatch, 0);
+    CommitTextureBatch(batch);
 }
 
 static void init(void) {
     sg_setup(&(sg_desc){.context=sapp_sgcontext()});
     stm_setup();
+    
+    state.pass_action = (sg_pass_action) {
+        .colors[0] = { .action=SG_ACTION_CLEAR, .value={0.f, 0.f, 0.f, 1.f} }
+    };
+    
+    state.pipeline = sg_make_pipeline(&(sg_pipeline_desc) {
+        .primitive_type = SG_PRIMITIVETYPE_TRIANGLES,
+        .shader = sg_make_shader(sprite_program_shader_desc(sg_query_backend())),
+        .layout = {
+            .buffers[0].stride = sizeof(Vertex),
+            .attrs = {
+                [ATTR_sprite_vs_position].format=SG_VERTEXFORMAT_FLOAT2,
+                [ATTR_sprite_vs_texcoord].format=SG_VERTEXFORMAT_FLOAT2
+            }
+        },
+        .colors[0] = {
+            .blend = {
+                .enabled = true,
+                .src_factor_rgb = SG_BLENDFACTOR_SRC_ALPHA,
+                .dst_factor_rgb = SG_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
+                .op_rgb = SG_BLENDOP_ADD,
+                .src_factor_alpha = SG_BLENDFACTOR_ONE,
+                .dst_factor_alpha = SG_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
+                .op_alpha = SG_BLENDOP_ADD
+            }
+        }
+    });
     
     state.world = EcsNewWorld();
     
@@ -188,7 +202,7 @@ static void init(void) {
     EcsTargetComponent = ECS_COMPONENT(state.world, Vec2);
     EcsNPC = ECS_TAG(state.world);
     EcsChunkComponent = ECS_COMPONENT(state.world, Chunk);
-    EcsRenderPass = ECS_COMPONENT(state.world, RenderPass);
+    EcsTextureBatchComponent = ECS_COMPONENT(state.world, TextureBatch);
     
     EcsCamera = ECS_TAG(state.world);
     Entity view = EcsNewEntity(state.world);
@@ -201,17 +215,21 @@ static void init(void) {
     *viewTarget = *viewPosition;
     EcsAttach(state.world, view, EcsCamera);
     
-    Entity chunkPass = AddPass(0, 0, "ChunkPass");
-    RenderPass *chunkRenderPass = EcsGet(state.world, chunkPass, EcsRenderPass);
-    RenderPassNewBatch(chunkRenderPass, "assets/tiles.png", CHUNK_SIZE);
-    
     ECS_SYSTEM(state.world, UpdateCamera, EcsCamera);
     ECS_SYSTEM(state.world, UpdateChunks, EcsChunkComponent);
-    ECS_SYSTEM(state.world, ResetPasses, EcsRenderPass);
     ECS_SYSTEM(state.world, RenderChunks, EcsChunkComponent);
-    ECS_SYSTEM(state.world, FlushPasses, EcsRenderPass);
     state.chunkSearchSystem = ECS_SYSTEM(state.world, ChunkSearch, EcsCamera);
     EcsDisableSystem(state.world, state.chunkSearchSystem);
+    ECS_SYSTEM(state.world, CommitBatches, EcsTextureBatchComponent);
+    
+    state.textures = NewTextureManager();
+    TextureManagerAdd(&state.textures, "assets/tiles.png");
+    
+    Entity chunkTiles = EcsNewEntity(state.world);
+    EcsAttach(state.world, chunkTiles, EcsTextureBatchComponent);
+    TextureBatch *chunkBatch = EcsGet(state.world, chunkTiles, EcsTextureBatchComponent);
+    *chunkBatch = NewTextureBatch(TextureManagerGet(&state.textures, "assets/tiles.png"), CHUNK_SIZE);
+    state.chunkTiles = chunkBatch;
     
     state.rng = NewRandom(0);
     for (int x = -1; x < 1; x++)
@@ -221,13 +239,27 @@ static void init(void) {
 
 static void frame(void) {
     state.delta = (float)(sapp_frame_duration() * 60.0);
+    
+    sg_begin_default_pass(&state.pass_action, sapp_width(), sapp_height());
+    sg_apply_pipeline(state.pipeline);
+    
     EcsStep(state.world);
     EcsDisableSystem(state.world, state.chunkSearchSystem);
+    
+    sg_end_pass();
     sg_commit();
+    
     ResetInputHandler();
 }
 
+static void DestroyBatches(Query *query) {
+    TextureBatch *batch = ECS_FIELD(query, TextureBatch, 0);
+    DestroyTextureBatch(batch);
+}
+
 static void cleanup(void) {
+    ECS_QUERY(state.world, DestroyBatches, NULL, EcsTextureBatchComponent);
+    DestroyTextureManager(&state.textures);
     DestroyWorld(&state.world);
     sg_shutdown();
 }
