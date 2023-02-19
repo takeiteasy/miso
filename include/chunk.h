@@ -7,6 +7,7 @@
 
 #ifndef chunk_h
 #define chunk_h
+#include <pthread.h>
 #include "ecs.h"
 #include "maths.h"
 #include "texture.h"
@@ -37,11 +38,14 @@ typedef enum {
 typedef struct {
     int x, y;
     int tiles[CHUNK_SIZE];
+    pthread_mutex_t lock;
 } Chunk;
 
 Vec2i CalcChunk(Vec2 position);
 ChunkState CalcChunkState(int x, int y, Vec2 cameraPosition, Vec2 cameraSize);
 Entity AddChunk(World *world, int x, int y);
+void ChunkSetTile(Chunk *chunk, int x, int y, int tile);
+int ChunkGetTile(Chunk *chunk, int x, int y);
 void RenderChunk(Chunk *chunk, Vec2 cameraPosition, Vec2 cameraSize, TextureBatch *batch);
 void DestroyChunk(Chunk *chunk);
 

@@ -18,9 +18,8 @@
 #include "chunk.h"
 #include "random.h"
 #include "queue.h"
+#include "log.h"
 
-#include <stdbool.h>
-#include <float.h>
 #include <sys/time.h>
 
 #define CAMERA_SPEED 10.f
@@ -31,6 +30,7 @@
 //! TODO: Loading and saving chunks
 //! TODO: Loading and saving game state
 //! TODO: Sprite animations
+//! TODO: Config file parsing json or ini
 
 static Entity EcsPositionComponent = EcsNilEntity;
 static Entity EcsTargetComponent = EcsNilEntity;
@@ -44,10 +44,11 @@ Entity EcsTextureBatchComponent = EcsNilEntity;
 static struct {
     World *world;
     Random rng;
+    float delta;
+    
     Chunk *chunks[MAX_CHUNKS];
     int chunksSize;
     Entity chunkSearchSystem;
-    float delta;
     TextureManager textures;
     TextureBatch *chunkTiles;
     Queue chunkQueue;
@@ -131,6 +132,8 @@ static void NewChunk(int x, int y) {
     Chunk *chunk = EcsGet(state.world, entity, EcsChunkComponent);
     chunk->x = x;
     chunk->y = y;
+    memset(chunk->tiles, 0, sizeof(int) * CHUNK_SIZE);
+    pthread_mutex_init(&chunk->lock, NULL);
     QueueAdd(&state.chunkQueue, (void*)chunk);
 }
 
@@ -185,15 +188,13 @@ static void* ChunkQueueThread(void *arg) {
         
         QueueBucket *bucket = QueuePop(&state.chunkQueue);
         Chunk *chunk = (Chunk*)bucket->data;
+        if (!chunk)
+            continue;
         
         unsigned char *heightmap = PerlinFBM(CHUNK_WIDTH, CHUNK_HEIGHT, chunk->x * CHUNK_WIDTH, chunk->y * CHUNK_HEIGHT, 200.f, 2.f, .5f, 16, true, &state.rng);
-        
         for (int x = 0; x < CHUNK_WIDTH; x++)
-            for (int y = 0; y < CHUNK_HEIGHT; y++) {
-                int i = y * CHUNK_WIDTH + x;
-                chunk->tiles[i] = CalcTile(heightmap[i]);
-            }
-        
+            for (int y = 0; y < CHUNK_HEIGHT; y++)
+                ChunkSetTile(chunk, x, y, CalcTile(heightmap[y * CHUNK_WIDTH + x]));
         free(bucket);
         free(heightmap);
     }

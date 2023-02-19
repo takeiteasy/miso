@@ -23,6 +23,7 @@ targets:
         - path: build/
           type: folder
         - path: src/
+        - path: include/
     dependencies:
         - sdk: Cocoa.framework
         - sdk: Metal.framework
@@ -30,5 +31,5 @@ targets:
         - sdk: Quartz.framework
         - sdk: AudioToolbox.framework
     settings:
-        HEADER_SEARCH_PATHS: [$(PROJECT_DIR)/deps, $(PROJECT_DIR)/build]
+        HEADER_SEARCH_PATHS: [$(PROJECT_DIR)/include, $(PROJECT_DIR)/deps, $(PROJECT_DIR)/build]
         OTHER_CFLAGS: ["-x objective-c", -DSOKOL_METAL, -fobjc-arc]

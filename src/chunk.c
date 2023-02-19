@@ -46,6 +46,19 @@ Entity AddChunk(World *world, int x, int y) {
     return e;
 }
 
+void ChunkSetTile(Chunk *chunk, int x, int y, int tile) {
+    pthread_mutex_lock(&chunk->lock);
+    chunk->tiles[CHUNK_AT(x, y)] = tile;
+    pthread_mutex_unlock(&chunk->lock);
+}
+
+int ChunkGetTile(Chunk *chunk, int x, int y) {
+    pthread_mutex_lock(&chunk->lock);
+    int result = chunk->tiles[CHUNK_AT(x, y)];
+    pthread_mutex_unlock(&chunk->lock);
+    return result;
+}
+
 static int IntToIndex(int i) {
     return abs(i * 2) - (i > 0 ? 1 : 0);
 }
@@ -67,10 +80,11 @@ void RenderChunk(Chunk *chunk, Vec2 cameraPosition, Vec2 cameraSize, TextureBatc
             Rect bounds = {{px, py}, {TILE_WIDTH, TILE_HEIGHT}};
             if (!DoRectsCollide(viewportBounds, bounds))
                 continue;
-            TextureBatchRender(batch, (Vec2){px,py}, (Vec2){TILE_WIDTH,TILE_HEIGHT}, (Vec2){1.f,1.f}, cameraSize, 0.f, (Rect){{chunk->tiles[CHUNK_AT(x, y)], 0}, {TILE_WIDTH, TILE_HEIGHT}});
+            TextureBatchRender(batch, (Vec2){px,py}, (Vec2){TILE_WIDTH,TILE_HEIGHT}, (Vec2){1.f,1.f}, cameraSize, 0.f, (Rect){{ChunkGetTile(chunk, x, y), 0}, {TILE_WIDTH, TILE_HEIGHT}});
         }
 }
 
 void DestroyChunk(Chunk *chunk) {
-    // ...
+    if (chunk)
+        pthread_mutex_destroy(&chunk->lock);
 }
