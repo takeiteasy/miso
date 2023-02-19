@@ -9,7 +9,7 @@
 #define chunk_h
 #include "ecs.h"
 #include "maths.h"
-#include "renderer.h"
+#include "texture.h"
 
 extern Entity EcsChunkComponent;
 

@@ -165,7 +165,7 @@ static float Remap(float value, float from1, float to1, float from2, float to2) 
 unsigned char* PerlinFBM(int w, int h, float xoff, float yoff, float scale, float lacunarity, float gain, int octaves, bool fadeOut, Random *rng) {
     float z = RandomFloat(rng);
     float min = FLT_MAX, max = FLT_MIN;
-    float grid[w * h];
+    float *grid = malloc(w * h * sizeof(float));
     for (int x = 0; x < w; ++x)
         for (int y = 0; y < h; ++y) {
             float freq = 2.f,
@@ -193,5 +193,6 @@ unsigned char* PerlinFBM(int w, int h, float xoff, float yoff, float scale, floa
             float final = height - grad;
             result[y * w + x] = (unsigned char)final;
         }
+    free(grid);
     return result;
 }

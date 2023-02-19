@@ -1,12 +1,12 @@
 //
-//  renderer.h
+//  texture.h
 //  colony
 //
 //  Created by George Watson on 09/02/2023.
 //
 
-#ifndef renderer_h
-#define renderer_h
+#ifndef texture_h
+#define texture_h
 #include "maths.h"
 #include "bitmap.h"
 #include "ecs.h"
@@ -50,4 +50,4 @@ void TextureManagerAdd(TextureManager *manager, const char *path);
 Texture TextureManagerGet(TextureManager *manager, const char *path);
 void DestroyTextureManager(TextureManager *manager);
 
-#endif /* renderer_h */
+#endif /* texture_h */

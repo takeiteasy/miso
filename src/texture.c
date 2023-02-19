@@ -1,11 +1,11 @@
 //
-//  renderer.c
+//  texture.c
 //  colony
 //
 //  Created by George Watson on 09/02/2023.
 //
 
-#include "renderer.h"
+#include "texture.h"
 
 Texture LoadTexture(const char *path) {
     Bitmap image = LoadBitmap(path);

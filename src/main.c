@@ -13,19 +13,20 @@
 
 #include "maths.h"
 #include "ecs.h"
-#include "renderer.h"
+#include "texture.h"
 #include "input.h"
 #include "chunk.h"
 #include "random.h"
+#include "queue.h"
 
 #include <stdbool.h>
 #include <float.h>
+#include <sys/time.h>
 
 #define CAMERA_SPEED 10.f
 #define CAMERA_CHASE_SPEED .1f
 
 //! TODO: Camera zooming
-//! TODO: Queue InitChunk on seperate thread
 //! TODO: Loading screen
 //! TODO: Loading and saving chunks
 //! TODO: Loading and saving game state
@@ -49,6 +50,8 @@ static struct {
     float delta;
     TextureManager textures;
     TextureBatch *chunkTiles;
+    Queue chunkQueue;
+    pthread_t chunkThread;
     
     sg_pass_action pass_action;
     sg_pipeline pipeline;
@@ -123,22 +126,12 @@ static int CalcTile(unsigned char height) {
     }
 }
 
-static void InitChunk(Chunk *chunk, Random *rng) {
-    unsigned char *heightmap = PerlinFBM(CHUNK_WIDTH, CHUNK_HEIGHT, chunk->x * CHUNK_WIDTH, chunk->y * CHUNK_HEIGHT, 200.f, 2.f, .5f, 16, true, &state.rng);
-    
-    for (int x = 0; x < CHUNK_WIDTH; x++)
-        for (int y = 0; y < CHUNK_HEIGHT; y++) {
-            int i = y * CHUNK_WIDTH + x;
-            chunk->tiles[i] = CalcTile(heightmap[i]);
-        }
-    
-    free(heightmap);
-}
-
 static void NewChunk(int x, int y) {
     Entity entity = AddChunk(state.world, x, y);
     Chunk *chunk = EcsGet(state.world, entity, EcsChunkComponent);
-    InitChunk(chunk, &state.rng);
+    chunk->x = x;
+    chunk->y = y;
+    QueueAdd(&state.chunkQueue, (void*)chunk);
 }
 
 static void ChunkSearch(Query *query) {
@@ -163,6 +156,48 @@ static void ChunkSearch(Query *query) {
 static void CommitBatches(Query *query) {
     TextureBatch *batch = ECS_FIELD(query, TextureBatch, 0);
     CommitTextureBatch(batch);
+}
+
+static void ThreadWait(pthread_cond_t *cond, pthread_mutex_t *mtx, int delayMs) {
+    struct timeval now;
+    gettimeofday(&now,NULL);
+    struct timespec wait = {
+        .tv_sec = now.tv_sec+5,
+        .tv_nsec = (now.tv_usec+1000UL*delayMs)*1000UL
+    };
+    
+    pthread_mutex_lock(mtx);
+    pthread_cond_timedwait(cond, mtx, &wait);
+    pthread_mutex_unlock(mtx);
+}
+
+static void* ChunkQueueThread(void *arg) {
+    pthread_cond_t waitCond;
+    pthread_cond_init(&waitCond, NULL);
+    pthread_mutex_t waitMutex;
+    pthread_mutex_init(&waitMutex, NULL);
+    
+    for (;;) {
+        if (state.chunkQueue.count < 1 || !state.chunkQueue.root.next || !state.chunkQueue.tail) {
+            ThreadWait(&waitCond, &waitMutex, 100);
+            continue;
+        }
+        
+        QueueBucket *bucket = QueuePop(&state.chunkQueue);
+        Chunk *chunk = (Chunk*)bucket->data;
+        
+        unsigned char *heightmap = PerlinFBM(CHUNK_WIDTH, CHUNK_HEIGHT, chunk->x * CHUNK_WIDTH, chunk->y * CHUNK_HEIGHT, 200.f, 2.f, .5f, 16, true, &state.rng);
+        
+        for (int x = 0; x < CHUNK_WIDTH; x++)
+            for (int y = 0; y < CHUNK_HEIGHT; y++) {
+                int i = y * CHUNK_WIDTH + x;
+                chunk->tiles[i] = CalcTile(heightmap[i]);
+            }
+        
+        free(bucket);
+        free(heightmap);
+    }
+    return NULL;
 }
 
 static void init(void) {
@@ -196,6 +231,7 @@ static void init(void) {
         }
     });
     
+    state.rng = NewRandom(0);
     state.world = EcsNewWorld();
     
     EcsPositionComponent = ECS_COMPONENT(state.world, Vec2);
@@ -231,10 +267,11 @@ static void init(void) {
     *chunkBatch = NewTextureBatch(TextureManagerGet(&state.textures, "assets/tiles.png"), CHUNK_SIZE);
     state.chunkTiles = chunkBatch;
     
-    state.rng = NewRandom(0);
+    state.chunkQueue = NewQueue();
     for (int x = -1; x < 1; x++)
         for (int y = -1; y < 1; y++)
             NewChunk(x, y);
+    pthread_create(&state.chunkThread, NULL, ChunkQueueThread, NULL);
 }
 
 static void frame(void) {
@@ -258,6 +295,8 @@ static void DestroyBatches(Query *query) {
 }
 
 static void cleanup(void) {
+    pthread_kill(state.chunkThread, 0);
+    DestroyQueue(&state.chunkQueue);
     ECS_QUERY(state.world, DestroyBatches, NULL, EcsTextureBatchComponent);
     DestroyTextureManager(&state.textures);
     DestroyWorld(&state.world);
