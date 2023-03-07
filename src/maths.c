@@ -25,3 +25,11 @@ Vec2 MoveTowards(Vec2 position, Vec2 target, float speed) {
     float min_step = MAX(0, dist - 100.f);
     return position + ((target - position) / dist) * (min_step + ((dist - FLT_EPSILON) - min_step) * speed);
 }
+
+Rect ScaleBy(Rect rect, float scale) {
+    Vec2 size = rect.size * scale;
+    return (Rect) {
+        .pos = rect.pos - (rect.size / 2) - (size / 2),
+        .size = size
+    };
+}

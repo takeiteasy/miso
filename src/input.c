@@ -82,3 +82,23 @@ bool IsButtonUp(sapp_mousebutton button) {
 bool WasButtonPressed(sapp_mousebutton button) {
     return Input.mouse_clicked[button];
 }
+
+bool WasMouseScrolled(void) {
+    return Input.mouse_scroll_delta.x != 0.f && Input.mouse_scroll_delta.y != 0;
+}
+
+Vec2 MouseScroll(void) {
+    return Input.mouse_scroll_delta;
+}
+
+bool WasMouseMoved(void) {
+    return Input.mouse_delta.x != 0.f && Input.mouse_delta.y != 0;;
+}
+
+Vec2 MousePosition(void) {
+    return Input.mouse_pos;
+}
+
+Vec2 MouseDelta(void) {
+    return Input.mouse_delta;
+}

@@ -57,7 +57,7 @@ void TextureBatchRender(TextureBatch *batch, Vec2 position, Vec2 size, Vec2 scal
         quad[j] = (Vec2) {
             vw * quad[j].x + -1.f,
             vh * quad[j].y +  1.f
-        };
+        } * scale;
     
     float iw = 1.f/batch->size.x, ih = 1.f/batch->size.y;
     float tl = clip.pos.x*iw;

@@ -19,5 +19,11 @@ bool WasKeyClicked(sapp_keycode key);
 bool IsButtonDown(sapp_mousebutton button);
 bool IsButtonUp(sapp_mousebutton button);
 bool WasButtonPressed(sapp_mousebutton button);
+bool WasButtonPressed(sapp_mousebutton button);
+bool WasMouseScrolled(void);
+Vec2 MouseScroll(void);
+bool WasMouseMoved(void);
+Vec2 MousePosition(void);
+Vec2 MouseDelta(void);
 
 #endif /* input_h */
