@@ -24,7 +24,6 @@
 #include "maths.h"
 #include "ecs.h"
 #include "texture.h"
-#include "input.h"
 #include "random.h"
 #include "log.h"
 
@@ -47,9 +46,9 @@
 #define CHUNK_REAL_HEIGHT (CHUNK_HEIGHT * HALF_TILE_HEIGHT)
 
 //! TODO: Minimap
+//! TODO: Add velocity to camera drag
 //! TODO: Cursor position to world/grid position
 //! TODO: Lua integration
-//! TODO: Clean up input handling
 //! TODO: Loading screen
 //! TODO: Loading and saving game state
 //! TODO: Sprite animations
@@ -79,9 +78,48 @@ static struct {
     TextureManager textures;
     TextureBatch chunkTiles;
     
+    bool button_down[SAPP_MAX_KEYCODES];
+    bool button_clicked[SAPP_MAX_KEYCODES];
+    bool mouse_down[SAPP_MAX_MOUSEBUTTONS];
+    bool mouse_clicked[SAPP_MAX_MOUSEBUTTONS];
+    Vec2 mouse_pos, last_mouse_pos;
+    Vec2 mouse_scroll_delta, mouse_delta;
+    
     sg_pass_action pass_action;
     sg_pipeline pipeline;
 } state;
+
+static bool IsKeyDown(sapp_keycode key) {
+    return state.button_down[key];
+}
+
+static bool IsKeyUp(sapp_keycode key) {
+    return !state.button_down[key];
+}
+
+static bool WasKeyClicked(sapp_keycode key) {
+    return state.button_clicked[key];
+}
+
+static bool IsButtonDown(sapp_mousebutton button) {
+    return state.mouse_down[button];
+}
+
+static bool IsButtonUp(sapp_mousebutton button) {
+    return !state.mouse_down[button];
+}
+
+static bool WasButtonPressed(sapp_mousebutton button) {
+    return state.mouse_clicked[button];
+}
+
+static bool WasMouseScrolled(void) {
+    return state.mouse_scroll_delta.x != 0.f && state.mouse_scroll_delta.y != 0;
+}
+
+static bool WasMouseMoved(void) {
+    return state.mouse_delta.x != 0.f && state.mouse_delta.y != 0;;
+}
 
 static int CalcTile(unsigned char height) {
     switch (MIN(255, height)) {
@@ -129,13 +167,11 @@ static void UpdateCamera(Query *query) {
     Vec2 *cameraTarget = EcsGet(state.world, query->entity, EcsTargetComponent);
     
     if (WasMouseScrolled())
-        state.zoom = CLAMP(state.zoom + MouseScroll().y, .1f, 2.f);
+        state.zoom = CLAMP(state.zoom + state.mouse_scroll_delta.y, .1f, 2.f);
     
     if (IsButtonDown(SAPP_MOUSEBUTTON_LEFT)) {
-        Vec2 delta = MousePosition() - state.mouseDownPos;
-        Vec2 oldPos = *cameraTarget;
-        *cameraPosition = oldPos - delta;
-        *cameraTarget = oldPos;
+        *cameraTarget = *cameraPosition - state.mouse_delta;
+        *cameraPosition = MoveTowards(*cameraPosition, *cameraTarget, CAMERA_CHASE_SPEED * 20.f);
     } else {
         Vec2 move = (Vec2){0,0};
         if (IsKeyDown(SAPP_KEYCODE_UP) || IsKeyDown(SAPP_KEYCODE_W))
@@ -230,7 +266,13 @@ static void frame(void) {
     sg_end_pass();
     sg_commit();
     
-    ResetInputHandler();
+    state.mouse_delta = state.mouse_scroll_delta = (Vec2){0};
+    for (int i = 0; i < SAPP_MAX_KEYCODES; i++)
+        if (state.button_clicked[i])
+            state.button_clicked[i] = false;
+    for (int i = 0; i < SAPP_MAX_MOUSEBUTTONS; i++)
+        if (state.mouse_clicked[i])
+            state.mouse_clicked[i] = false;
 }
 
 static void cleanup(void) {
@@ -245,15 +287,40 @@ static void cleanup(void) {
 
 static void event(const sapp_event *e) {
     snk_handle_event(e);
-    InputHandler(e);
     switch (e->type) {
+        case SAPP_EVENTTYPE_KEY_DOWN:
+#if defined(DEBUG)
+            if (e->modifiers & SAPP_MODIFIER_SUPER && e->key_code == SAPP_KEYCODE_W)
+                sapp_quit();
+#endif
+            state.button_down[e->key_code] = true;
+            break;
+        case SAPP_EVENTTYPE_KEY_UP:
+            state.button_down[e->key_code] = false;
+            state.button_clicked[e->key_code] = true;
+            break;
         case SAPP_EVENTTYPE_MOUSE_DOWN:
-            if (e->mouse_button == SAPP_MOUSEBUTTON_LEFT)
+            state.mouse_down[e->mouse_button] = true;
+            
+            if (e->mouse_button == SAPP_MOUSEBUTTON_LEFT) {
                 state.mouseDownPos = (Vec2){ e->mouse_x, e->mouse_y };
+                ECS_QUERY(state.world, UpdateCameraTarget, NULL, EcsPositionComponent, EcsTargetComponent);
+            }
             break;
         case SAPP_EVENTTYPE_MOUSE_UP:
+            state.mouse_down[e->mouse_button] = false;
+            state.mouse_clicked[e->mouse_button] = true;
+            
             if (e->mouse_button == SAPP_MOUSEBUTTON_LEFT)
                 ECS_QUERY(state.world, UpdateCameraTarget, NULL, EcsPositionComponent, EcsTargetComponent);
+            break;
+        case SAPP_EVENTTYPE_MOUSE_MOVE:
+            state.last_mouse_pos = state.mouse_pos;
+            state.mouse_pos = (Vec2){e->mouse_x, e->mouse_y};
+            state.mouse_delta = (Vec2){e->mouse_dx, e->mouse_dy};
+            break;
+        case SAPP_EVENTTYPE_MOUSE_SCROLL:
+            state.mouse_scroll_delta = (Vec2){e->scroll_x, e->scroll_y};
             break;
         default:
             break;
