@@ -46,6 +46,10 @@
 #define CHUNK_REAL_WIDTH (CHUNK_WIDTH * TILE_WIDTH)
 #define CHUNK_REAL_HEIGHT (CHUNK_HEIGHT * HALF_TILE_HEIGHT)
 
+//! TODO: Minimap
+//! TODO: Cursor position to world/grid position
+//! TODO: Lua integration
+//! TODO: Clean up input handling
 //! TODO: Loading screen
 //! TODO: Loading and saving game state
 //! TODO: Sprite animations
@@ -69,6 +73,7 @@ static struct {
     Random rng;
     float delta;
     float zoom;
+    Vec2 mouseDownPos;
     
     Map map;
     TextureManager textures;
@@ -103,8 +108,6 @@ static void InitMap(void) {
 static void RenderMap(Vec2 cameraPosition, Vec2 cameraSize, float cameraScale) {
     static Vec2 tile = (Vec2){TILE_WIDTH,TILE_HEIGHT};
     Vec2 offset = (tile/2) + (-cameraPosition + cameraSize / 2);
-    Rect viewport = {-tile, cameraSize+tile};
-    
     for (int x = 0; x < CHUNK_WIDTH; x++)
         for (int y = 0; y < CHUNK_HEIGHT; y++) {
             Vec2 p = (Vec2) {
@@ -115,22 +118,39 @@ static void RenderMap(Vec2 cameraPosition, Vec2 cameraSize, float cameraScale) {
         }
 }
 
+static void UpdateCameraTarget(Query *query) {
+    Position *cameraPosition = EcsGet(state.world, query->entity, EcsPositionComponent);
+    Vec2 *cameraTarget = EcsGet(state.world, query->entity, EcsTargetComponent);
+    *cameraTarget = *cameraPosition;
+}
+
 static void UpdateCamera(Query *query) {
     Position *cameraPosition = EcsGet(state.world, query->entity, EcsPositionComponent);
     Vec2 *cameraTarget = EcsGet(state.world, query->entity, EcsTargetComponent);
     
-    Vec2 move = (Vec2){0,0};
-    if (IsKeyDown(SAPP_KEYCODE_UP) || IsKeyDown(SAPP_KEYCODE_W))
-        move.y = -1;
-    if (IsKeyDown(SAPP_KEYCODE_DOWN) || IsKeyDown(SAPP_KEYCODE_S))
-        move.y =  1;
-    if (IsKeyDown(SAPP_KEYCODE_LEFT) || IsKeyDown(SAPP_KEYCODE_A))
-        move.x = -1;
-    if (IsKeyDown(SAPP_KEYCODE_RIGHT) || IsKeyDown(SAPP_KEYCODE_D))
-        move.x =  1;
+    if (WasMouseScrolled())
+        state.zoom = CLAMP(state.zoom + MouseScroll().y, .1f, 2.f);
     
-    *cameraTarget = *cameraTarget + (CAMERA_SPEED * state.delta * move);
-    *cameraPosition = MoveTowards(*cameraPosition, *cameraTarget, CAMERA_CHASE_SPEED);
+    if (IsButtonDown(SAPP_MOUSEBUTTON_LEFT)) {
+        Vec2 delta = MousePosition() - state.mouseDownPos;
+        Vec2 oldPos = *cameraTarget;
+        *cameraPosition = oldPos - delta;
+        *cameraTarget = oldPos;
+    } else {
+        Vec2 move = (Vec2){0,0};
+        if (IsKeyDown(SAPP_KEYCODE_UP) || IsKeyDown(SAPP_KEYCODE_W))
+            move.y = -1;
+        if (IsKeyDown(SAPP_KEYCODE_DOWN) || IsKeyDown(SAPP_KEYCODE_S))
+            move.y =  1;
+        if (IsKeyDown(SAPP_KEYCODE_LEFT) || IsKeyDown(SAPP_KEYCODE_A))
+            move.x = -1;
+        if (IsKeyDown(SAPP_KEYCODE_RIGHT) || IsKeyDown(SAPP_KEYCODE_D))
+            move.x =  1;
+        
+        *cameraTarget = *cameraTarget + (CAMERA_SPEED * state.delta * move);
+        *cameraPosition = MoveTowards(*cameraPosition, *cameraTarget, CAMERA_CHASE_SPEED);
+    }
+    
     RenderMap(*cameraPosition, (Vec2){sapp_width(), sapp_height()}, state.zoom);
 }
 
@@ -140,7 +160,7 @@ static void init(void) {
     stm_setup();
     
     state.pass_action = (sg_pass_action) {
-        .colors[0] = { .action=SG_ACTION_CLEAR, .value={0.f, 0.f, 0.f, 1.f} }
+        .colors[0] = { .action=SG_ACTION_CLEAR, .value={0.38f, 0.6f, 1.f, 1.f} }
     };
     
     state.pipeline = sg_make_pipeline(&(sg_pipeline_desc) {
@@ -202,8 +222,6 @@ static void frame(void) {
     
     struct nk_context *ctx = snk_new_frame();
     
-    state.zoom = CLAMP(state.zoom + MouseScroll().y, .1f, 2.f);
-    
     sg_begin_default_pass(&state.pass_action, sapp_width(), sapp_height());
     sg_apply_pipeline(state.pipeline);
     EcsStep(state.world);
@@ -228,6 +246,18 @@ static void cleanup(void) {
 static void event(const sapp_event *e) {
     snk_handle_event(e);
     InputHandler(e);
+    switch (e->type) {
+        case SAPP_EVENTTYPE_MOUSE_DOWN:
+            if (e->mouse_button == SAPP_MOUSEBUTTON_LEFT)
+                state.mouseDownPos = (Vec2){ e->mouse_x, e->mouse_y };
+            break;
+        case SAPP_EVENTTYPE_MOUSE_UP:
+            if (e->mouse_button == SAPP_MOUSEBUTTON_LEFT)
+                ECS_QUERY(state.world, UpdateCameraTarget, NULL, EcsPositionComponent, EcsTargetComponent);
+            break;
+        default:
+            break;
+    }
 }
 
 sapp_desc sokol_main(int argc, char* argv[]) {
