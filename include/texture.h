@@ -38,6 +38,7 @@ typedef struct {
 } TextureManager;
 
 Texture LoadTexture(const char *path);
+Texture MutableTexture(int w, int h);
 void DestroyTexture(Texture texture);
 
 TextureBatch NewTextureBatch(Texture texture, int maxVertices);
@@ -47,6 +48,7 @@ void DestroyTextureBatch(TextureBatch *batch);
 
 TextureManager NewTextureManager(void);
 void TextureManagerAdd(TextureManager *manager, const char *path);
+void TextureManagerNew(TextureManager *manager, const char *name, int w, int h);
 Texture TextureManagerGet(TextureManager *manager, const char *path);
 void DestroyTextureManager(TextureManager *manager);
 

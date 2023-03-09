@@ -30,6 +30,5 @@ typedef struct {
 bool DoRectsCollide(Rect a, Rect b);
 float DistanceBetween(Vec2 a, Vec2 b);
 Vec2 MoveTowards(Vec2 position, Vec2 target, float speed);
-Rect ScaleBy(Rect rect, float scale);
 
 #endif /* maths_h */

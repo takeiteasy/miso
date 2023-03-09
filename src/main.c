@@ -73,8 +73,11 @@ static struct {
     float delta;
     float zoom;
     Vec2 mouseDownPos;
+    bool isWindowHovered;
     
     Map map;
+    Bitmap minimap;
+    Texture minimapTexture;
     TextureManager textures;
     TextureBatch chunkTiles;
     
@@ -136,11 +139,31 @@ static int CalcTile(unsigned char height) {
     }
 }
 
+static int CalcMinimapTile(unsigned char height) {
+    switch (MIN(255, height)) {
+        case 26 ... 37:
+            return RGB(11, 95, 230);
+        case 38 ... 70:
+            return RGB(212, 180, 63);
+        case 71 ... 100:
+            return RGB(83, 168, 37);
+        case 101 ... 113:
+            return RGB(34, 92, 18);
+        default:
+            return RGB(66, 135, 245);
+    }
+}
+
 static void InitMap(void) {
     state.map.heightmap = PerlinFBM(CHUNK_WIDTH, CHUNK_HEIGHT, 0.f, 0.f, 0.f, 200.f, 2.f, .5f, 8);
+    state.minimap = NewBitmap(CHUNK_WIDTH, CHUNK_HEIGHT);
     for (int x = 0; x < CHUNK_WIDTH; x++)
-        for (int y = 0; y < CHUNK_HEIGHT; y++)
-            state.map.tiles[CHUNK_AT(x, y)] = CalcTile(state.map.heightmap[CHUNK_AT(x, y)]);
+        for (int y = 0; y < CHUNK_HEIGHT; y++) {
+            unsigned char h = state.map.heightmap[CHUNK_AT(x, y)];
+            state.map.tiles[CHUNK_AT(x, y)] = CalcTile(h);
+            state.minimap.buf[CHUNK_AT(x, y)] = CalcMinimapTile(h);
+        }
+    state.minimapTexture = MutableTexture(CHUNK_WIDTH, CHUNK_HEIGHT);
 }
 
 static void RenderMap(Vec2 cameraPosition, Vec2 cameraSize, float cameraScale) {
@@ -166,6 +189,9 @@ static void UpdateCamera(Query *query) {
     Position *cameraPosition = EcsGet(state.world, query->entity, EcsPositionComponent);
     Vec2 *cameraTarget = EcsGet(state.world, query->entity, EcsTargetComponent);
     
+    if (state.isWindowHovered)
+        goto RENDER;
+
     if (WasMouseScrolled())
         state.zoom = CLAMP(state.zoom + state.mouse_scroll_delta.y, .1f, 2.f);
     
@@ -187,6 +213,7 @@ static void UpdateCamera(Query *query) {
         *cameraPosition = MoveTowards(*cameraPosition, *cameraTarget, CAMERA_CHASE_SPEED);
     }
     
+RENDER:
     RenderMap(*cameraPosition, (Vec2){sapp_width(), sapp_height()}, state.zoom);
 }
 
@@ -226,8 +253,8 @@ static void init(void) {
     
     state.rng = NewRandom(0);
     state.world = EcsNewWorld();
-    InitMap();
     state.zoom = 1.f;
+    InitMap();
     
     EcsPositionComponent = ECS_COMPONENT(state.world, Vec2);
     EcsTargetComponent = ECS_COMPONENT(state.world, Vec2);
@@ -253,10 +280,124 @@ static void init(void) {
     ECS_SYSTEM(state.world, UpdateCamera, EcsCamera);
 }
 
+struct nk_canvas {
+    struct nk_command_buffer *painter;
+    struct nk_vec2 item_spacing;
+    struct nk_vec2 panel_padding;
+    struct nk_style_item window_background;
+};
+
+static nk_bool canvas_begin(struct nk_context *ctx, struct nk_canvas *canvas, nk_flags flags,
+    int x, int y, int width, int height, struct nk_color background_color) {
+    /* save style properties which will be overwritten */
+    canvas->panel_padding = ctx->style.window.padding;
+    canvas->item_spacing = ctx->style.window.spacing;
+    canvas->window_background = ctx->style.window.fixed_background;
+
+    /* use the complete window space and set background */
+    ctx->style.window.spacing = nk_vec2(0,0);
+    ctx->style.window.padding = nk_vec2(0,0);
+    ctx->style.window.fixed_background = nk_style_item_color(background_color);
+
+    struct nk_rect total_space;
+    total_space = nk_window_get_content_region(ctx);
+    nk_layout_row_dynamic(ctx, total_space.h, 1);
+    nk_widget(&total_space, ctx);
+    canvas->painter = nk_window_get_canvas(ctx);
+    
+    return nk_true;
+}
+
+static void canvas_end(struct nk_context *ctx, struct nk_canvas *canvas) {
+    ctx->style.window.spacing = canvas->panel_padding;
+    ctx->style.window.padding = canvas->item_spacing;
+    ctx->style.window.fixed_background = canvas->window_background;
+}
+
+static float remap(float value, float low1, float high1, float low2, float high2) {
+    return low2 + (value - low1) * (high2 - low2) / (high1 - low1);
+}
+
+static void RenderThickLine(Bitmap *b, int x, int y) {
+    for (int xx = x - 1; xx < x + 2; xx++)
+        for (int yy = y - 1; yy < y + 2; yy++)
+            PSet(b, xx, yy, RGB(255, 0, 0));
+}
+
+static void RenderCameraView(Query *query) {
+    Position *cameraPosition = EcsGet(state.world, query->entity, EcsPositionComponent);
+    static Vec2 tile = (Vec2){TILE_WIDTH, HALF_TILE_HEIGHT};
+    float scale = remap(state.zoom, .1f, 2.f, 2.f, .1f);
+    Vec2 viewportSize = ((Vec2){sapp_width(),sapp_height()} / tile) * scale;
+    Vec2 viewportHalfSize = viewportSize / 2.f;
+    Vec2 cameraRelativePosition = *cameraPosition / tile;
+    
+    for (int x = 0; x < CHUNK_WIDTH; x++)
+        for (int y = 0; y < CHUNK_HEIGHT; y++)
+            state.minimap.buf[CHUNK_AT(x, y)] = CalcMinimapTile(state.map.heightmap[CHUNK_AT(x, y)]);
+    for (int x = cameraRelativePosition.x - viewportHalfSize.x; x < cameraRelativePosition.x + viewportHalfSize.x; x++) {
+        RenderThickLine(&state.minimap, x, cameraRelativePosition.y - viewportHalfSize.y);
+        RenderThickLine(&state.minimap, x, cameraRelativePosition.y + viewportHalfSize.y);
+    }
+    for (int y = cameraRelativePosition.y - viewportHalfSize.y; y < cameraRelativePosition.y + viewportHalfSize.y; y++) {
+        RenderThickLine(&state.minimap, cameraRelativePosition.x - viewportHalfSize.x, y);
+        RenderThickLine(&state.minimap, cameraRelativePosition.x + viewportHalfSize.x, y);
+    }
+}
+
+static void RenderMinimap(struct nk_context *ctx, int w, int h) {
+    struct nk_canvas canvas;
+    if (canvas_begin(ctx, &canvas, NK_WINDOW_BORDER|NK_WINDOW_MOVABLE|NK_WINDOW_SCALABLE|
+        NK_WINDOW_CLOSABLE|NK_WINDOW_MINIMIZABLE|NK_WINDOW_TITLE, 10, 10, w, h, nk_rgb(250,250,250))) {
+
+        ECS_QUERY(state.world, RenderCameraView, NULL, EcsCamera);
+        sg_update_image(state.minimapTexture, &(sg_image_data) {
+            .subimage[0][0] = {
+                .ptr  = state.minimap.buf,
+                .size = CHUNK_WIDTH * CHUNK_HEIGHT * sizeof(int)
+            }
+        });
+        struct nk_image img = nk_image_id((int)state.minimapTexture.id);
+        float x = canvas.painter->clip.x, y = canvas.painter->clip.y;
+        nk_draw_image(canvas.painter, nk_rect(x, y, w, h), &img, nk_rgba(255, 255, 255, 255));
+        canvas_end(ctx, &canvas);
+    }
+}
+
+static void ForceCameraTarget(Query *query) {
+    Position *cameraPosition = EcsGet(state.world, query->entity, EcsPositionComponent);
+//    Vec2 *cameraTarget = EcsGet(state.world, query->entity, EcsTargetComponent);
+    *cameraPosition = *(Vec2*)query->userdata;
+}
+
 static void frame(void) {
     state.delta = (float)(sapp_frame_duration() * 60.0);
     
     struct nk_context *ctx = snk_new_frame();
+    
+    if (nk_begin(ctx, "Settings", nk_rect(0, 0, CHUNK_WIDTH/2, CHUNK_HEIGHT/2), NK_WINDOW_SCALABLE | NK_WINDOW_MOVABLE | NK_WINDOW_NO_SCROLLBAR | NK_WINDOW_BORDER | NK_WINDOW_MINIMIZABLE)) {
+        struct nk_vec2 size = nk_window_get_size(ctx);
+        struct nk_vec2 pos = nk_window_get_position(ctx);
+        RenderMinimap(ctx, size.x, size.y);
+        if (nk_window_is_hovered(ctx) && IsButtonDown(SAPP_MOUSEBUTTON_LEFT)) {
+            Vec2 mouse = (Vec2) {
+                state.mouse_pos.x - pos.x,
+                state.mouse_pos.y - pos.y
+            };
+            static const int BORDER_WIDTH  = 8;
+            static const int BORDER_HEIGHT = 32;
+            if (mouse.x >= BORDER_WIDTH && mouse.y >= BORDER_HEIGHT && mouse.x < size.x + BORDER_WIDTH && mouse.y < size.y + BORDER_HEIGHT) {
+                Vec2 position = (Vec2) {
+                    remap(mouse.x - 8,  0, size.x, 0, CHUNK_WIDTH),
+                    remap(mouse.y - 32, 0, size.y, 0, CHUNK_HEIGHT)
+                } * (Vec2){TILE_WIDTH, HALF_TILE_HEIGHT};
+                ECS_QUERY(state.world, ForceCameraTarget, (void*)&position, EcsCamera);
+            }
+        }
+    }
+    if (ctx->current)
+        nk_end(ctx);
+    state.isWindowHovered = nk_window_is_any_hovered(ctx);
     
     sg_begin_default_pass(&state.pass_action, sapp_width(), sapp_height());
     sg_apply_pipeline(state.pipeline);
@@ -278,6 +419,8 @@ static void frame(void) {
 static void cleanup(void) {
     if (state.map.heightmap)
         free(state.map.heightmap);
+    DestroyBitmap(&state.minimap);
+    DestroyTexture(state.minimapTexture);
     DestroyTextureBatch(&state.chunkTiles);
     DestroyTextureManager(&state.textures);
     DestroyWorld(&state.world);
@@ -290,7 +433,7 @@ static void event(const sapp_event *e) {
     switch (e->type) {
         case SAPP_EVENTTYPE_KEY_DOWN:
 #if defined(DEBUG)
-            if (e->modifiers & SAPP_MODIFIER_SUPER && e->key_code == SAPP_KEYCODE_W)
+            if (e->modifiers & SAPP_MODIFIER_SUPER && (e->key_code == SAPP_KEYCODE_W || e->key_code == SAPP_KEYCODE_Q))
                 sapp_quit();
 #endif
             state.button_down[e->key_code] = true;
@@ -304,7 +447,7 @@ static void event(const sapp_event *e) {
             
             if (e->mouse_button == SAPP_MOUSEBUTTON_LEFT) {
                 state.mouseDownPos = (Vec2){ e->mouse_x, e->mouse_y };
-                ECS_QUERY(state.world, UpdateCameraTarget, NULL, EcsPositionComponent, EcsTargetComponent);
+                ECS_QUERY(state.world, UpdateCameraTarget, NULL, EcsCamera);
             }
             break;
         case SAPP_EVENTTYPE_MOUSE_UP:
@@ -312,7 +455,7 @@ static void event(const sapp_event *e) {
             state.mouse_clicked[e->mouse_button] = true;
             
             if (e->mouse_button == SAPP_MOUSEBUTTON_LEFT)
-                ECS_QUERY(state.world, UpdateCameraTarget, NULL, EcsPositionComponent, EcsTargetComponent);
+                ECS_QUERY(state.world, UpdateCameraTarget, NULL, EcsCamera);
             break;
         case SAPP_EVENTTYPE_MOUSE_MOVE:
             state.last_mouse_pos = state.mouse_pos;

@@ -22,6 +22,14 @@ Texture LoadTexture(const char *path) {
     return result;
 }
 
+Texture MutableTexture(int w, int h) {
+    return sg_make_image(&(sg_image_desc) {
+        .width = w,
+        .height = h,
+        .usage = SG_USAGE_STREAM
+    });
+}
+
 void DestroyTexture(Texture texture) {
     if (sg_query_image_state(texture) == SG_RESOURCESTATE_VALID)
         sg_destroy_image(texture);
@@ -140,6 +148,15 @@ void TextureManagerAdd(TextureManager *manager, const char *path) {
     if ((found = hashmap_get(manager->map, (void*)&search)))
         return;
     if ((sg_query_image_state((search.texture = LoadTexture(path)))) != SG_RESOURCESTATE_INVALID)
+        hashmap_set(manager->map, (void*)&search);
+}
+
+void TextureManagerNew(TextureManager *manager, const char *name, int w, int h) {
+    TextureBucket search = {.name=name};
+    TextureBucket *found = NULL;
+    if ((found = hashmap_get(manager->map, (void*)&search)))
+        return;
+    if ((sg_query_image_state((search.texture = MutableTexture(w, h)))) != SG_RESOURCESTATE_INVALID)
         hashmap_set(manager->map, (void*)&search);
 }
 
