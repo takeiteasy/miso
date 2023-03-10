@@ -57,11 +57,11 @@ Vec2 LastMousePosition(void) {
 }
 
 Vec2 MouseScrollDelta(void) {
-    return Input.mouse_delta;
+    return Input.mouse_scroll_delta;
 }
 
 Vec2 MouseMoveDelta(void) {
-    return Input.mouse_scroll_delta;
+    return Input.mouse_delta;
 }
 
 void InputHandler(const sapp_event* e) {

@@ -66,12 +66,10 @@ static struct {
     float zoom;
     Vec2 mouseDownPos;
     bool isWindowHovered;
-    bool showMinimap;
     
     Map map;
     Bitmap minimap;
     Texture minimapTexture;
-    struct nk_vec2 minimapPosition, minimapSize;
     TextureBatch chunkTiles;
     Bitmap tileMask;
     
@@ -194,7 +192,7 @@ static void UpdateCamera(Query *query) {
         state.zoom = CLAMP(state.zoom + MouseScrollDelta().y, .1f, 2.f);
     
     if (IsButtonDown(SAPP_MOUSEBUTTON_LEFT)) {
-        *cameraTarget = *cameraPosition - MouseScrollDelta();
+        *cameraTarget = *cameraPosition - MouseMoveDelta();
         *cameraPosition = MoveTowards(*cameraPosition, *cameraTarget, CAMERA_CHASE_SPEED * 20.f);
     } else {
         Vec2 move = (Vec2){0,0};
@@ -292,9 +290,31 @@ static void RenderMinimap(struct nk_context *ctx, int w, int h) {
     }
 }
 
+static void ForceCameraPosition(Query *query) {
+    Position *cameraPosition = EcsGet(state.world, query->entity, EcsPositionComponent);
+    *cameraPosition = *(Vec2*)query->userdata;
+}
+
 static void MinimapCallback(struct nk_context *ctx) {
     struct nk_vec2 size = nk_window_get_size(ctx);
+    struct nk_vec2 pos = nk_window_get_position(ctx);
     RenderMinimap(ctx, size.x, size.y);
+    if (nk_window_is_hovered(ctx) && IsButtonDown(SAPP_MOUSEBUTTON_LEFT)) {
+        Vec2 mouseOriginal = MousePosition();
+        Vec2 mouse = (Vec2) {
+            mouseOriginal.x - pos.x,
+            mouseOriginal.y - pos.y
+        };
+        static const int BORDER_WIDTH  = 8;
+        static const int BORDER_HEIGHT = 32;
+        if (mouse.x >= BORDER_WIDTH && mouse.y >= BORDER_HEIGHT && mouse.x < size.x + BORDER_WIDTH && mouse.y < size.y + BORDER_HEIGHT) {
+            Vec2 position = (Vec2) {
+                Remap(mouse.x - 8,  0, size.x, 0, CHUNK_WIDTH),
+                Remap(mouse.y - 32, 0, size.y, 0, CHUNK_HEIGHT)
+            } * (Vec2){TILE_WIDTH, HALF_TILE_HEIGHT};
+            ECS_QUERY(state.world, ForceCameraPosition, (void*)&position, EcsCamera);
+        }
+    }
 }
 
 static void init(void) {
@@ -333,9 +353,6 @@ static void init(void) {
     state.rng = NewRandom(0);
     state.world = EcsNewWorld();
     state.zoom = 1.f;
-    state.showMinimap = false;
-    state.minimapPosition = nk_vec2(0.f, 0.f);
-    state.minimapSize = nk_vec2(CHUNK_WIDTH/2, CHUNK_HEIGHT/2);
     InitMap();
     state.tileMask = LoadBitmap("assets/mask.png");
     InitTextureManager();
@@ -367,17 +384,15 @@ static void init(void) {
     ECS_SYSTEM(state.world, UpdateCamera, EcsCamera);
 }
 
-static void ForceCameraPosition(Query *query) {
-    Position *cameraPosition = EcsGet(state.world, query->entity, EcsPositionComponent);
-    *cameraPosition = *(Vec2*)query->userdata;
-}
-
 static void frame(void) {
     state.delta = (float)(sapp_frame_duration() * 60.0);
     
     struct nk_context *ctx = snk_new_frame();
     WindowManagerUpdate(ctx);
     state.isWindowHovered = nk_window_is_any_hovered(ctx);
+    
+    Vec2 test = MouseScrollDelta();
+    printf("%f, %f\n", test.x, test.y);
     
     sg_begin_default_pass(&state.pass_action, sapp_width(), sapp_height());
     sg_apply_pipeline(state.pipeline);
