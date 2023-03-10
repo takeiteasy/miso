@@ -25,3 +25,7 @@ Vec2 MoveTowards(Vec2 position, Vec2 target, float speed) {
     float min_step = MAX(0, dist - 100.f);
     return position + ((target - position) / dist) * (min_step + ((dist - FLT_EPSILON) - min_step) * speed);
 }
+
+float Remap(float value, float low1, float high1, float low2, float high2) {
+    return low2 + (value - low1) * (high2 - low2) / (high1 - low1);
+}

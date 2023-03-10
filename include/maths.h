@@ -30,5 +30,6 @@ typedef struct {
 bool DoRectsCollide(Rect a, Rect b);
 float DistanceBetween(Vec2 a, Vec2 b);
 Vec2 MoveTowards(Vec2 position, Vec2 target, float speed);
+float Remap(float value, float low1, float high1, float low2, float high2);
 
 #endif /* maths_h */
