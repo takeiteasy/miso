@@ -5,22 +5,15 @@
 //  Created by George Watson on 08/02/2023.
 //
 
-#define NK_INCLUDE_FIXED_TYPES
-#define NK_INCLUDE_STANDARD_IO
-#define NK_INCLUDE_DEFAULT_ALLOCATOR
-#define NK_INCLUDE_VERTEX_BUFFER_OUTPUT
-#define NK_INCLUDE_FONT_BAKING
-#define NK_INCLUDE_DEFAULT_FONT
-#define NK_INCLUDE_STANDARD_VARARGS
-#include "nuklear.h"
+
 
 #include "sokol_gfx.h"
 #include "sokol_app.h"
 #include "sokol_glue.h"
 #include "sokol_args.h"
 #include "sokol_time.h"
-#include "sokol_nuklear.h"
 
+#include "gui.h"
 #include "maths.h"
 #include "ecs.h"
 #include "texture.h"
@@ -79,52 +72,12 @@ static struct {
     Bitmap minimap;
     Texture minimapTexture;
     struct nk_vec2 minimapPosition, minimapSize;
-    TextureManager textures;
     TextureBatch chunkTiles;
     Bitmap tileMask;
-    
-    bool button_down[SAPP_MAX_KEYCODES];
-    bool button_clicked[SAPP_MAX_KEYCODES];
-    bool mouse_down[SAPP_MAX_MOUSEBUTTONS];
-    bool mouse_clicked[SAPP_MAX_MOUSEBUTTONS];
-    Vec2 mouse_pos, last_mouse_pos;
-    Vec2 mouse_scroll_delta, mouse_delta;
     
     sg_pass_action pass_action;
     sg_pipeline pipeline;
 } state;
-
-static bool IsKeyDown(sapp_keycode key) {
-    return state.button_down[key];
-}
-
-static bool IsKeyUp(sapp_keycode key) {
-    return !state.button_down[key];
-}
-
-static bool WasKeyPressed(sapp_keycode key) {
-    return state.button_clicked[key];
-}
-
-static bool IsButtonDown(sapp_mousebutton button) {
-    return state.mouse_down[button];
-}
-
-static bool IsButtonUp(sapp_mousebutton button) {
-    return !state.mouse_down[button];
-}
-
-static bool WasButtonPressed(sapp_mousebutton button) {
-    return state.mouse_clicked[button];
-}
-
-static bool WasMouseScrolled(void) {
-    return state.mouse_scroll_delta.x != 0.f && state.mouse_scroll_delta.y != 0;
-}
-
-static bool WasMouseMoved(void) {
-    return state.mouse_delta.x != 0.f && state.mouse_delta.y != 0;;
-}
 
 static int CalcTile(unsigned char height) {
     switch (MIN(255, height)) {
@@ -238,10 +191,10 @@ static void UpdateCamera(Query *query) {
         goto RENDER;
 
     if (WasMouseScrolled())
-        state.zoom = CLAMP(state.zoom + state.mouse_scroll_delta.y, .1f, 2.f);
+        state.zoom = CLAMP(state.zoom + MouseScrollDelta().y, .1f, 2.f);
     
     if (IsButtonDown(SAPP_MOUSEBUTTON_LEFT)) {
-        *cameraTarget = *cameraPosition - state.mouse_delta;
+        *cameraTarget = *cameraPosition - MouseScrollDelta();
         *cameraPosition = MoveTowards(*cameraPosition, *cameraTarget, CAMERA_CHASE_SPEED * 20.f);
     } else {
         Vec2 move = (Vec2){0,0};
@@ -260,74 +213,6 @@ static void UpdateCamera(Query *query) {
     
 RENDER:
     RenderMap(*cameraPosition, (Vec2){sapp_width(), sapp_height()}, state.zoom);
-}
-
-
-static void init(void) {
-    sg_setup(&(sg_desc){.context=sapp_sgcontext()});
-    stm_setup();
-    
-    state.pass_action = (sg_pass_action) {
-        .colors[0] = { .action=SG_ACTION_CLEAR, .value={0.38f, 0.6f, 1.f, 1.f} }
-    };
-    
-    state.pipeline = sg_make_pipeline(&(sg_pipeline_desc) {
-        .primitive_type = SG_PRIMITIVETYPE_TRIANGLES,
-        .shader = sg_make_shader(sprite_program_shader_desc(sg_query_backend())),
-        .layout = {
-            .buffers[0].stride = sizeof(Vertex),
-            .attrs = {
-                [ATTR_sprite_vs_position].format=SG_VERTEXFORMAT_FLOAT2,
-                [ATTR_sprite_vs_texcoord].format=SG_VERTEXFORMAT_FLOAT2
-            }
-        },
-        .colors[0] = {
-            .blend = {
-                .enabled = true,
-                .src_factor_rgb = SG_BLENDFACTOR_SRC_ALPHA,
-                .dst_factor_rgb = SG_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
-                .op_rgb = SG_BLENDOP_ADD,
-                .src_factor_alpha = SG_BLENDFACTOR_ONE,
-                .dst_factor_alpha = SG_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
-                .op_alpha = SG_BLENDOP_ADD
-            }
-        }
-    });
-    
-    snk_setup(&(snk_desc_t) {});
-    
-    state.rng = NewRandom(0);
-    state.world = EcsNewWorld();
-    state.zoom = 1.f;
-    state.showMinimap = false;
-    state.minimapPosition = nk_vec2(0.f, 0.f);
-    state.minimapSize = nk_vec2(CHUNK_WIDTH/2, CHUNK_HEIGHT/2);
-    InitMap();
-    state.tileMask = LoadBitmap("assets/mask.png");
-    
-    EcsPositionComponent = ECS_COMPONENT(state.world, Vec2);
-    EcsTargetComponent = ECS_COMPONENT(state.world, Vec2);
-    EcsNPC = ECS_TAG(state.world);
-    EcsTextureBatchComponent = ECS_COMPONENT(state.world, TextureBatch);
-    
-    EcsCamera = ECS_TAG(state.world);
-    Entity view = EcsNewEntity(state.world);
-    EcsName(state.world, view, "Camera");
-    EcsAttach(state.world, view, EcsPositionComponent);
-    Position *viewPosition = EcsGet(state.world, view, EcsPositionComponent);
-//    *viewPosition = (Vec2){0.f,0.f};
-    *viewPosition = (Vec2){CHUNK_WIDTH * TILE_WIDTH / 2, CHUNK_HEIGHT * HALF_TILE_HEIGHT / 2};
-    EcsAttach(state.world, view, EcsTargetComponent);
-    Vec2 *viewTarget = EcsGet(state.world, view, EcsTargetComponent);
-    *viewTarget = *viewPosition;
-    EcsAttach(state.world, view, EcsCamera);
-    
-    state.textures = NewTextureManager();
-    TextureManagerAdd(&state.textures, "assets/tiles.png");
-    
-    state.chunkTiles = NewTextureBatch(TextureManagerGet(&state.textures, "assets/tiles.png"), CHUNK_SIZE * 6);
-    
-    ECS_SYSTEM(state.world, UpdateCamera, EcsCamera);
 }
 
 struct nk_canvas {
@@ -407,6 +292,81 @@ static void RenderMinimap(struct nk_context *ctx, int w, int h) {
     }
 }
 
+static void MinimapCallback(struct nk_context *ctx) {
+    struct nk_vec2 size = nk_window_get_size(ctx);
+    RenderMinimap(ctx, size.x, size.y);
+}
+
+static void init(void) {
+    sg_setup(&(sg_desc){.context=sapp_sgcontext()});
+    stm_setup();
+    
+    state.pass_action = (sg_pass_action) {
+        .colors[0] = { .action=SG_ACTION_CLEAR, .value={0.38f, 0.6f, 1.f, 1.f} }
+    };
+    
+    state.pipeline = sg_make_pipeline(&(sg_pipeline_desc) {
+        .primitive_type = SG_PRIMITIVETYPE_TRIANGLES,
+        .shader = sg_make_shader(sprite_program_shader_desc(sg_query_backend())),
+        .layout = {
+            .buffers[0].stride = sizeof(Vertex),
+            .attrs = {
+                [ATTR_sprite_vs_position].format=SG_VERTEXFORMAT_FLOAT2,
+                [ATTR_sprite_vs_texcoord].format=SG_VERTEXFORMAT_FLOAT2
+            }
+        },
+        .colors[0] = {
+            .blend = {
+                .enabled = true,
+                .src_factor_rgb = SG_BLENDFACTOR_SRC_ALPHA,
+                .dst_factor_rgb = SG_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
+                .op_rgb = SG_BLENDOP_ADD,
+                .src_factor_alpha = SG_BLENDFACTOR_ONE,
+                .dst_factor_alpha = SG_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
+                .op_alpha = SG_BLENDOP_ADD
+            }
+        }
+    });
+    
+    snk_setup(&(snk_desc_t) {});
+    
+    state.rng = NewRandom(0);
+    state.world = EcsNewWorld();
+    state.zoom = 1.f;
+    state.showMinimap = false;
+    state.minimapPosition = nk_vec2(0.f, 0.f);
+    state.minimapSize = nk_vec2(CHUNK_WIDTH/2, CHUNK_HEIGHT/2);
+    InitMap();
+    state.tileMask = LoadBitmap("assets/mask.png");
+    InitTextureManager();
+        InitWindowManager();
+    WindowManagerAdd("Minimap", nk_vec2(0.f, 0.f), nk_vec2(CHUNK_WIDTH/2,CHUNK_HEIGHT/2), false, NK_WINDOW_SCALABLE | NK_WINDOW_MOVABLE | NK_WINDOW_NO_SCROLLBAR | NK_WINDOW_BORDER | NK_WINDOW_MINIMIZABLE | NK_WINDOW_CLOSABLE, MinimapCallback, SAPP_KEYCODE_M);
+
+    
+    EcsPositionComponent = ECS_COMPONENT(state.world, Vec2);
+    EcsTargetComponent = ECS_COMPONENT(state.world, Vec2);
+    EcsNPC = ECS_TAG(state.world);
+    EcsTextureBatchComponent = ECS_COMPONENT(state.world, TextureBatch);
+    
+    EcsCamera = ECS_TAG(state.world);
+    Entity view = EcsNewEntity(state.world);
+    EcsName(state.world, view, "Camera");
+    EcsAttach(state.world, view, EcsPositionComponent);
+    Position *viewPosition = EcsGet(state.world, view, EcsPositionComponent);
+//    *viewPosition = (Vec2){0.f,0.f};
+    *viewPosition = (Vec2){CHUNK_WIDTH * TILE_WIDTH / 2, CHUNK_HEIGHT * HALF_TILE_HEIGHT / 2};
+    EcsAttach(state.world, view, EcsTargetComponent);
+    Vec2 *viewTarget = EcsGet(state.world, view, EcsTargetComponent);
+    *viewTarget = *viewPosition;
+    EcsAttach(state.world, view, EcsCamera);
+    
+    TextureManagerAdd("assets/tiles.png");
+    
+    state.chunkTiles = NewTextureBatch(TextureManagerGet("assets/tiles.png"), CHUNK_SIZE * 6);
+    
+    ECS_SYSTEM(state.world, UpdateCamera, EcsCamera);
+}
+
 static void ForceCameraPosition(Query *query) {
     Position *cameraPosition = EcsGet(state.world, query->entity, EcsPositionComponent);
     *cameraPosition = *(Vec2*)query->userdata;
@@ -416,36 +376,7 @@ static void frame(void) {
     state.delta = (float)(sapp_frame_duration() * 60.0);
     
     struct nk_context *ctx = snk_new_frame();
-    
-    bool closed = nk_window_is_closed(ctx, "Settings");
-    if (state.showMinimap && closed)
-        state.showMinimap = false;
-    if (WasKeyPressed(SAPP_KEYCODE_M))
-        state.showMinimap = !state.showMinimap;
-    if (state.showMinimap && nk_begin(ctx, "Settings", nk_rect(state.minimapPosition.x, state.minimapPosition.y, state.minimapSize.x, state.minimapSize.y), NK_WINDOW_SCALABLE | NK_WINDOW_MOVABLE | NK_WINDOW_NO_SCROLLBAR | NK_WINDOW_BORDER | NK_WINDOW_MINIMIZABLE | NK_WINDOW_CLOSABLE)) {
-        struct nk_vec2 size = nk_window_get_size(ctx);
-        struct nk_vec2 pos = nk_window_get_position(ctx);
-        RenderMinimap(ctx, size.x, size.y);
-        if (nk_window_is_hovered(ctx) && IsButtonDown(SAPP_MOUSEBUTTON_LEFT)) {
-            Vec2 mouse = (Vec2) {
-                state.mouse_pos.x - pos.x,
-                state.mouse_pos.y - pos.y
-            };
-            static const int BORDER_WIDTH  = 8;
-            static const int BORDER_HEIGHT = 32;
-            if (mouse.x >= BORDER_WIDTH && mouse.y >= BORDER_HEIGHT && mouse.x < size.x + BORDER_WIDTH && mouse.y < size.y + BORDER_HEIGHT) {
-                Vec2 position = (Vec2) {
-                    Remap(mouse.x - 8,  0, size.x, 0, CHUNK_WIDTH),
-                    Remap(mouse.y - 32, 0, size.y, 0, CHUNK_HEIGHT)
-                } * (Vec2){TILE_WIDTH, HALF_TILE_HEIGHT};
-                ECS_QUERY(state.world, ForceCameraPosition, (void*)&position, EcsCamera);
-            }
-        }
-        state.minimapPosition = nk_window_get_position(ctx);
-        state.minimapSize = nk_window_get_size(ctx);
-    }
-    if (ctx->current)
-        nk_end(ctx);
+    WindowManagerUpdate(ctx);
     state.isWindowHovered = nk_window_is_any_hovered(ctx);
     
     sg_begin_default_pass(&state.pass_action, sapp_width(), sapp_height());
@@ -455,14 +386,7 @@ static void frame(void) {
     snk_render(sapp_width(), sapp_height());
     sg_end_pass();
     sg_commit();
-    
-    state.mouse_delta = state.mouse_scroll_delta = (Vec2){0};
-    for (int i = 0; i < SAPP_MAX_KEYCODES; i++)
-        if (state.button_clicked[i])
-            state.button_clicked[i] = false;
-    for (int i = 0; i < SAPP_MAX_MOUSEBUTTONS; i++)
-        if (state.mouse_clicked[i])
-            state.mouse_clicked[i] = false;
+    ResetInput();
 }
 
 static void cleanup(void) {
@@ -471,7 +395,8 @@ static void cleanup(void) {
     DestroyBitmap(&state.minimap);
     DestroyTexture(state.minimapTexture);
     DestroyTextureBatch(&state.chunkTiles);
-    DestroyTextureManager(&state.textures);
+    DestroyTextureManager();
+    DestroyWindowManager();
     DestroyWorld(&state.world);
     snk_shutdown();
     sg_shutdown();
@@ -479,6 +404,7 @@ static void cleanup(void) {
 
 static void event(const sapp_event *e) {
     snk_handle_event(e);
+    InputHandler(e);
     switch (e->type) {
         case SAPP_EVENTTYPE_KEY_DOWN:
 #if defined(DEBUG)
@@ -487,34 +413,22 @@ static void event(const sapp_event *e) {
             if (e->modifiers & SAPP_MODIFIER_SUPER && (e->key_code == SAPP_KEYCODE_W || e->key_code == SAPP_KEYCODE_Q))
                 sapp_quit();
 #endif
-            state.button_down[e->key_code] = true;
             break;
         case SAPP_EVENTTYPE_KEY_UP:
-            state.button_down[e->key_code] = false;
-            state.button_clicked[e->key_code] = true;
             break;
         case SAPP_EVENTTYPE_MOUSE_DOWN:
-            state.mouse_down[e->mouse_button] = true;
-            
             if (e->mouse_button == SAPP_MOUSEBUTTON_LEFT) {
                 state.mouseDownPos = (Vec2){ e->mouse_x, e->mouse_y };
                 ECS_QUERY(state.world, UpdateCameraTarget, NULL, EcsCamera);
             }
             break;
         case SAPP_EVENTTYPE_MOUSE_UP:
-            state.mouse_down[e->mouse_button] = false;
-            state.mouse_clicked[e->mouse_button] = true;
-            
             if (e->mouse_button == SAPP_MOUSEBUTTON_LEFT)
                 ECS_QUERY(state.world, UpdateCameraTarget, NULL, EcsCamera);
             break;
         case SAPP_EVENTTYPE_MOUSE_MOVE:
-            state.last_mouse_pos = state.mouse_pos;
-            state.mouse_pos = (Vec2){e->mouse_x, e->mouse_y};
-            state.mouse_delta = (Vec2){e->mouse_dx, e->mouse_dy};
             break;
         case SAPP_EVENTTYPE_MOUSE_SCROLL:
-            state.mouse_scroll_delta = (Vec2){e->scroll_x, e->scroll_y};
             break;
         default:
             break;

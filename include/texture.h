@@ -33,9 +33,7 @@ typedef struct {
     Vec2 size;
 } TextureBatch;
 
-typedef struct {
-    struct hashmap *map;
-} TextureManager;
+
 
 Texture LoadTexture(const char *path);
 Texture MutableTexture(int w, int h);
@@ -46,10 +44,9 @@ void TextureBatchRender(TextureBatch *batch, Vec2 position, Vec2 size, Vec2 scal
 void CommitTextureBatch(TextureBatch *batch);
 void DestroyTextureBatch(TextureBatch *batch);
 
-TextureManager NewTextureManager(void);
-void TextureManagerAdd(TextureManager *manager, const char *path);
-void TextureManagerNew(TextureManager *manager, const char *name, int w, int h);
-Texture TextureManagerGet(TextureManager *manager, const char *path);
-void DestroyTextureManager(TextureManager *manager);
+void InitTextureManager(void);
+void TextureManagerAdd(const char *path);
+Texture TextureManagerGet(const char *path);
+void DestroyTextureManager(void);
 
 #endif /* texture_h */

@@ -119,6 +119,10 @@ typedef struct {
     Texture texture;
 } TextureBucket;
 
+static struct {
+    struct hashmap *map;
+} TextureManager;
+
 static uint64_t HashBatch(const void *item, uint64_t seed0, uint64_t seed1) {
     TextureBucket *bucket = (TextureBucket*)item;
     return hashmap_sip(bucket->name, strlen(bucket->name), seed0, seed1);
@@ -136,39 +140,28 @@ static void FreeBatch(void *item) {
         sg_destroy_image(bucket->texture);
 }
 
-TextureManager NewTextureManager(void) {
-    return (TextureManager) {
-        .map = hashmap_new(sizeof(TextureBucket), 0, 0, 0, HashBatch, CompareBatch, FreeBatch, NULL)
-    };
+void InitTextureManager(void) {
+    TextureManager.map = hashmap_new(sizeof(TextureBucket), 0, 0, 0, HashBatch, CompareBatch, FreeBatch, NULL);
 }
 
-void TextureManagerAdd(TextureManager *manager, const char *path) {
+void TextureManagerAdd(const char *path) {
     TextureBucket search = {.name=path};
     TextureBucket *found = NULL;
-    if ((found = hashmap_get(manager->map, (void*)&search)))
+    if ((found = hashmap_get(TextureManager.map, (void*)&search)))
         return;
     if ((sg_query_image_state((search.texture = LoadTexture(path)))) != SG_RESOURCESTATE_INVALID)
-        hashmap_set(manager->map, (void*)&search);
+        hashmap_set(TextureManager.map, (void*)&search);
 }
 
-void TextureManagerNew(TextureManager *manager, const char *name, int w, int h) {
-    TextureBucket search = {.name=name};
-    TextureBucket *found = NULL;
-    if ((found = hashmap_get(manager->map, (void*)&search)))
-        return;
-    if ((sg_query_image_state((search.texture = MutableTexture(w, h)))) != SG_RESOURCESTATE_INVALID)
-        hashmap_set(manager->map, (void*)&search);
-}
-
-Texture TextureManagerGet(TextureManager *manager, const char *path) {
+Texture TextureManagerGet(const char *path) {
     TextureBucket search = {.name=path};
     TextureBucket *found = NULL;
-    if (!(found = hashmap_get(manager->map, (void*)&search)))
+    if (!(found = hashmap_get(TextureManager.map, (void*)&search)))
         return (sg_image){SG_INVALID_ID};
     return found->texture;
 }
 
-void DestroyTextureManager(TextureManager *manager) {
-    if (manager && manager->map)
-        hashmap_free(manager->map);
+void DestroyTextureManager(void) {
+    if (TextureManager.map)
+        hashmap_free(TextureManager.map);
 }
