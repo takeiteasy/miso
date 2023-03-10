@@ -74,6 +74,7 @@ static struct {
     float zoom;
     Vec2 mouseDownPos;
     bool isWindowHovered;
+    bool showMinimap;
     
     Map map;
     Bitmap minimap;
@@ -100,7 +101,7 @@ static bool IsKeyUp(sapp_keycode key) {
     return !state.button_down[key];
 }
 
-static bool WasKeyClicked(sapp_keycode key) {
+static bool WasKeyPressed(sapp_keycode key) {
     return state.button_clicked[key];
 }
 
@@ -254,6 +255,7 @@ static void init(void) {
     state.rng = NewRandom(0);
     state.world = EcsNewWorld();
     state.zoom = 1.f;
+    state.showMinimap = false;
     InitMap();
     
     EcsPositionComponent = ECS_COMPONENT(state.world, Vec2);
@@ -287,8 +289,7 @@ struct nk_canvas {
     struct nk_style_item window_background;
 };
 
-static nk_bool canvas_begin(struct nk_context *ctx, struct nk_canvas *canvas, nk_flags flags,
-    int x, int y, int width, int height, struct nk_color background_color) {
+static nk_bool canvas_begin(struct nk_context *ctx, struct nk_canvas *canvas, struct nk_color background_color) {
     /* save style properties which will be overwritten */
     canvas->panel_padding = ctx->style.window.padding;
     canvas->item_spacing = ctx->style.window.spacing;
@@ -347,9 +348,7 @@ static void RenderCameraView(Query *query) {
 
 static void RenderMinimap(struct nk_context *ctx, int w, int h) {
     struct nk_canvas canvas;
-    if (canvas_begin(ctx, &canvas, NK_WINDOW_BORDER|NK_WINDOW_MOVABLE|NK_WINDOW_SCALABLE|
-        NK_WINDOW_CLOSABLE|NK_WINDOW_MINIMIZABLE|NK_WINDOW_TITLE, 10, 10, w, h, nk_rgb(250,250,250))) {
-
+    if (canvas_begin(ctx, &canvas, nk_rgb(250,250,250))) {
         ECS_QUERY(state.world, RenderCameraView, NULL, EcsCamera);
         sg_update_image(state.minimapTexture, &(sg_image_data) {
             .subimage[0][0] = {
@@ -375,7 +374,12 @@ static void frame(void) {
     
     struct nk_context *ctx = snk_new_frame();
     
-    if (nk_begin(ctx, "Settings", nk_rect(0, 0, CHUNK_WIDTH/2, CHUNK_HEIGHT/2), NK_WINDOW_SCALABLE | NK_WINDOW_MOVABLE | NK_WINDOW_NO_SCROLLBAR | NK_WINDOW_BORDER | NK_WINDOW_MINIMIZABLE)) {
+    bool closed = nk_window_is_closed(ctx, "Settings");
+    if (state.showMinimap && closed)
+        state.showMinimap = false;
+    if (WasKeyPressed(SAPP_KEYCODE_M))
+        state.showMinimap = !state.showMinimap;
+    if (state.showMinimap && nk_begin(ctx, "Settings", nk_rect(0, 0, CHUNK_WIDTH/2, CHUNK_HEIGHT/2), NK_WINDOW_SCALABLE | NK_WINDOW_MOVABLE | NK_WINDOW_NO_SCROLLBAR | NK_WINDOW_BORDER | NK_WINDOW_MINIMIZABLE | NK_WINDOW_CLOSABLE)) {
         struct nk_vec2 size = nk_window_get_size(ctx);
         struct nk_vec2 pos = nk_window_get_position(ctx);
         RenderMinimap(ctx, size.x, size.y);
@@ -394,6 +398,7 @@ static void frame(void) {
                 ECS_QUERY(state.world, ForceCameraTarget, (void*)&position, EcsCamera);
             }
         }
+        
     }
     if (ctx->current)
         nk_end(ctx);
