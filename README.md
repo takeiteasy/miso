@@ -22,6 +22,8 @@ Nothing to see yet
     - nuklear.h
 - [tidwall/hashmap.c](https://github.com/tidwall/hashmap.c) (MIT)
     - hashmap.h
+- [esr/microjson](https://gitlab.com/esr/microjson/) (BSD-2-clause)
+    - mjson.h
     
 ### References
 

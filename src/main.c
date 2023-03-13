@@ -5,21 +5,18 @@
 //  Created by George Watson on 08/02/2023.
 //
 
-
-
 #include "sokol_gfx.h"
 #include "sokol_app.h"
 #include "sokol_glue.h"
 #include "sokol_args.h"
 #include "sokol_time.h"
-
+#include "mjson.h"
 #include "gui.h"
 #include "maths.h"
 #include "ecs.h"
 #include "texture.h"
 #include "random.h"
 #include "log.h"
-
 #include <sys/time.h>
 
 #define CAMERA_SPEED 10.f
@@ -38,9 +35,9 @@
 #define CHUNK_REAL_WIDTH (CHUNK_WIDTH * TILE_WIDTH)
 #define CHUNK_REAL_HEIGHT (CHUNK_HEIGHT * HALF_TILE_HEIGHT)
 
+#define MAX_BIOMES 16
+
 //! TODO: Add velocity to camera drag
-//! TODO: Cursor position to world/grid position
-//! TODO: Lua integration
 //! TODO: Loading screen
 //! TODO: Loading and saving game state
 //! TODO: Sprite animations
@@ -59,6 +56,12 @@ typedef struct {
     int tiles[CHUNK_SIZE];
 } Map;
 
+typedef struct {
+    int color;
+    float xoff;
+    unsigned char max;
+} Biome;
+
 static struct {
     World *world;
     Random rng;
@@ -68,6 +71,8 @@ static struct {
     bool isWindowHovered;
     
     Map map;
+    Biome *biomes;
+    int biomesCount;
     Bitmap minimap;
     Texture minimapTexture;
     TextureBatch chunkTiles;
@@ -77,38 +82,152 @@ static struct {
     sg_pipeline pipeline;
 } state;
 
-static int CalcTile(unsigned char height) {
-    switch (MIN(255, height)) {
-        case 26 ... 37:
-            return 0;
-        case 38 ... 70:
-            return 64;
-        case 71 ... 100:
-            return 32;
-        case 101 ... 113:
-            return 96;
-        default:
-            return 0;
+static char* LoadFile(const char *path, size_t *length) {
+    char *result = NULL;
+    size_t sz = -1;
+    FILE *fh = fopen(path, "rb");
+    if (!fh)
+        goto BAIL;
+    fseek(fh, 0, SEEK_END);
+    sz = ftell(fh);
+    fseek(fh, 0, SEEK_SET);
+
+    result = malloc(sz * sizeof(char));
+    fread(result, sz, 1, fh);
+    fclose(fh);
+    
+BAIL:
+    if (length)
+        *length = sz;
+    return result;
+}
+
+static int Vec4RGBA(Vec4 rgba) {
+    return RGBA(rgba.x, rgba.y, rgba.z, rgba.w);
+}
+
+static void LoadBiomes(const char *path) {
+    int colorR[MAX_BIOMES];
+    int colorG[MAX_BIOMES];
+    int colorB[MAX_BIOMES];
+    int colorA[MAX_BIOMES];
+    double max[MAX_BIOMES];
+    const struct json_attr_t biome_attr[] = {
+        {"r", t_integer, .addr.integer=colorR},
+        {"g", t_integer, .addr.integer=colorG},
+        {"b", t_integer, .addr.integer=colorB},
+        {"a", t_integer, .addr.integer=colorA},
+        {"max", t_real, .addr.real=max},
+        {NULL}
+    };
+    const struct json_attr_t root_attr[] = {
+        {"biomes", t_array, .addr.array.element_type=t_object,
+                            .addr.array.arr.objects.subtype=biome_attr,
+                            .addr.array.maxlen=MAX_BIOMES,
+                            .addr.array.count=&state.biomesCount},
+        {NULL}
+    };
+    
+    char *json = LoadFile(path, NULL);
+    assert(json);
+    int status = json_read_object(json, root_attr, NULL);
+    assert(!status);
+    assert(state.biomesCount);
+    
+    state.biomes = malloc(state.biomesCount * sizeof(Biome));
+    for (int i = 0; i < state.biomesCount; i++) {
+        Biome *biome = &state.biomes[i];
+        biome->color = Vec4RGBA((Vec4){(float)colorR[i], (float)colorG[i], (float)colorB[i], (float)colorA[i]} / 255.f);
+        biome->xoff = i * TILE_WIDTH;
+        biome->max = max[i];
     }
+}
+
+
+static void DefaultBiomes(void) {
+#define RGB(R, G, B) ((255 << 24) | ((unsigned char)(B) << 16) | ((unsigned char)(G) << 8) | (unsigned char)(R))
+    static const int colors[] = {
+        RGB(66, 135, 245),
+        RGB(212, 180, 63),
+        RGB(83, 168, 37),
+        RGB(34, 92, 18),
+        RGB(11, 95, 230)
+    };
+#undef RGB
+    static const float offsets[] = {
+        0.f,
+        64.f,
+        32.f,
+        96.f,
+        0.f
+    };
+    static const float maxValues[] = {
+        .1f,
+        .14f,
+        .27f,
+        .39f,
+        .52f
+    };
+    state.biomesCount = 5;
+    state.biomes = malloc(5 * sizeof(Biome));
+    for (int i = 0; i < 5; i++) {
+        Biome *biome = &state.biomes[i];
+        biome->color = colors[i];
+        biome->xoff = offsets[i];
+        biome->max = (unsigned char)(maxValues[i] * 255);
+    }
+}
+
+static int CalcTile(unsigned char height) {
+    for (int i = 0; i < state.biomesCount; i++) {
+        Biome *biome = &state.biomes[i];
+        if (height <= biome->max)
+            return (int)biome->xoff;
+    }
+    return (int)state.biomes[0].xoff;
 }
 
 static int CalcMinimapTile(unsigned char height) {
-    switch (MIN(255, height)) {
-        case 26 ... 37:
-            return RGB(11, 95, 230);
-        case 38 ... 70:
-            return RGB(212, 180, 63);
-        case 71 ... 100:
-            return RGB(83, 168, 37);
-        case 101 ... 113:
-            return RGB(34, 92, 18);
-        default:
-            return RGB(66, 135, 245);
+    for (int i = 0; i < state.biomesCount; i++) {
+        Biome *biome = &state.biomes[i];
+        if (height <= biome->max)
+            return biome->color;
     }
+    return state.biomes[0].color;
 }
 
-static void InitMap(void) {
-    state.map.heightmap = PerlinFBM(CHUNK_WIDTH, CHUNK_HEIGHT, 0.f, 0.f, 0.f, 200.f, 2.f, .5f, 8);
+static void InitMap(const char *perlinPath, const char *biomePath) {
+    double z = 0.f;
+    double scale = 200.f;
+    double lacunarity = 2.f;
+    double gain = .5f;
+    double octaves = 8;
+    if (perlinPath) {
+        const struct json_attr_t settings_attr[] = {
+            {"zoff", t_real, .addr.real=&z},
+            {"scale", t_real, .addr.real=&scale},
+            {"lacunarity", t_real, .addr.real=&lacunarity},
+            {"gain", t_real, .addr.real=&gain},
+            {"octaves", t_real, .addr.real=&octaves},
+            {NULL}
+        };
+        const struct json_attr_t root_attr[] = {
+            {"perlin", t_object, .addr.attrs=settings_attr},
+            {NULL}
+        };
+        
+        char *json = LoadFile(perlinPath, NULL);
+        assert(json);
+        int status = json_read_object(json, root_attr, NULL);
+        assert(!status);
+    }
+    
+    if (biomePath)
+        LoadBiomes(biomePath);
+    else
+        DefaultBiomes();
+    
+    state.map.heightmap = PerlinFBM(CHUNK_WIDTH, CHUNK_HEIGHT, 0.f, 0.f, (float)z, (float)scale, (float)lacunarity, (float)gain, (int)octaves);
     state.minimap = NewBitmap(CHUNK_WIDTH, CHUNK_HEIGHT);
     for (int x = 0; x < CHUNK_WIDTH; x++)
         for (int y = 0; y < CHUNK_HEIGHT; y++) {
@@ -353,7 +472,8 @@ static void init(void) {
     state.rng = NewRandom(0);
     state.world = EcsNewWorld();
     state.zoom = 1.f;
-    InitMap();
+    InitMap(NULL, NULL);
+//    InitMap("assets/perlin.json", "assets/biomes.json");
     state.tileMask = LoadBitmap("assets/mask.png");
     InitTextureManager();
         InitWindowManager();
@@ -391,9 +511,6 @@ static void frame(void) {
     WindowManagerUpdate(ctx);
     state.isWindowHovered = nk_window_is_any_hovered(ctx);
     
-    Vec2 test = MouseScrollDelta();
-    printf("%f, %f\n", test.x, test.y);
-    
     sg_begin_default_pass(&state.pass_action, sapp_width(), sapp_height());
     sg_apply_pipeline(state.pipeline);
     EcsStep(state.world);
@@ -405,6 +522,7 @@ static void frame(void) {
 }
 
 static void cleanup(void) {
+    free(state.biomes);
     free(state.map.heightmap);
     DestroyBitmap(&state.tileMask);
     DestroyBitmap(&state.minimap);

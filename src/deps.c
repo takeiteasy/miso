@@ -23,3 +23,5 @@
 #include "sokol_nuklear.h"
 #define HASHMAP_IMPL
 #include "hashmap.h"
+#define MJSON_IMPLEMENTATION
+#include "mjson.h"

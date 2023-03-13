@@ -8,7 +8,7 @@
 #include "bitmap.h"
 
 int RGBA(unsigned char r, unsigned char g, unsigned char b, unsigned char a) {
-    return ((unsigned int)a << 24) | ((unsigned int)b << 16) | ((unsigned int)g << 8) | r;
+    return ((unsigned char)a << 24) | ((unsigned char)b << 16) | ((unsigned char)g << 8) | (unsigned char)r;
 }
 
 int RGB(unsigned char r, unsigned char g, unsigned char b) {
