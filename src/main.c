@@ -49,7 +49,7 @@ static Entity EcsTargetComponent = EcsNilEntity;
 static Entity EcsCamera = EcsNilEntity;
 static Entity EcsNPC = EcsNilEntity;
 
-Entity EcsTextureBatchComponent = EcsNilEntity;
+static Entity EcsTextureBatchComponent = EcsNilEntity;
 
 typedef struct {
     unsigned char *heightmap;
@@ -247,7 +247,8 @@ static void RenderMap(Vec2 cameraPosition, Vec2 cameraSize, float cameraScale) {
                 offset.x + ((float)x * (float)TILE_WIDTH) + (y % 2 ? HALF_TILE_WIDTH : 0),
                 offset.y + ((float)y * (float)TILE_HEIGHT) - (y * HALF_TILE_HEIGHT)
             } - (tile / 2);
-            TextureBatchRender(&state.chunkTiles, p, tile, (Vec2){cameraScale,cameraScale}, cameraSize, 0.f, (Rect){{state.map.tiles[CHUNK_AT(x, y)], 0}, tile});
+            Vec4 colorTest = (Vec4){1.f, 1.f, .5f};
+            TextureBatchRender(&state.chunkTiles, p, tile, (Vec2){cameraScale,cameraScale}, cameraSize, 0.f, (Rect){{state.map.tiles[CHUNK_AT(x, y)], 0}, tile}, colorTest);
         }
 }
 
@@ -449,9 +450,11 @@ static void init(void) {
         .shader = sg_make_shader(sprite_program_shader_desc(sg_query_backend())),
         .layout = {
             .buffers[0].stride = sizeof(Vertex),
+            .buffers[1].step_func = SG_VERTEXSTEP_PER_INSTANCE,
             .attrs = {
-                [ATTR_sprite_vs_position].format=SG_VERTEXFORMAT_FLOAT2,
-                [ATTR_sprite_vs_texcoord].format=SG_VERTEXFORMAT_FLOAT2
+                [ATTR_sprite_vs_position] = {.format=SG_VERTEXFORMAT_FLOAT2, .buffer_index=0},
+                [ATTR_sprite_vs_texcoord] = {.format=SG_VERTEXFORMAT_FLOAT2, .buffer_index=0},
+                [ATTR_sprite_vs_color] = {.format=SG_VERTEXFORMAT_FLOAT4, .buffer_index=1}
             }
         },
         .colors[0] = {

@@ -39,6 +39,7 @@ TextureBatch NewTextureBatch(Texture texture, int maxVertices) {
     sg_image_info info = sg_query_image_info(texture);
     return (TextureBatch) {
         .vertices = malloc(6 * maxVertices * sizeof(Vertex)),
+        .colors = malloc(maxVertices * sizeof(Vec4)),
         .maxVertices = maxVertices,
         .vertexCount = 0,
         .binding = {
@@ -46,13 +47,17 @@ TextureBatch NewTextureBatch(Texture texture, int maxVertices) {
             .vertex_buffers[0] = sg_make_buffer(&(sg_buffer_desc) {
                 .usage = SG_USAGE_STREAM,
                 .size = 6 * maxVertices * sizeof(Vertex)
+            }),
+            .vertex_buffers[1] = sg_make_buffer(&(sg_buffer_desc) {
+                .usage = SG_USAGE_STREAM,
+                .size = maxVertices * sizeof(Vec4)
             })
         },
         .size = {info.width, info.height}
     };
 }
 
-void TextureBatchRender(TextureBatch *batch, Vec2 position, Vec2 size, Vec2 scale, Vec2 viewportSize, float rotation, Rect clip) {
+void TextureBatchRender(TextureBatch *batch, Vec2 position, Vec2 size, Vec2 scale, Vec2 viewportSize, float rotation, Rect clip, Vec4 color) {
     Vec2 quad[4] = {
         {position.x, position.y + size.y}, // bottom left
         {position.x + size.x, position.y + size.y}, // bottom right
@@ -90,6 +95,7 @@ void TextureBatchRender(TextureBatch *batch, Vec2 position, Vec2 size, Vec2 scal
             .position = quad[indices[i]],
             .texcoord = vtexquad[indices[i]]
         };
+    batch->colors[batch->vertexCount] = color;
     memcpy(&batch->vertices[batch->vertexCount++ * 6], result, 6 * sizeof(Vertex));
 }
 
@@ -99,6 +105,10 @@ void CommitTextureBatch(TextureBatch *batch) {
     sg_update_buffer(batch->binding.vertex_buffers[0], &(sg_range) {
         .ptr = batch->vertices,
         .size = 6 * batch->vertexCount * sizeof(Vertex)
+    });
+    sg_update_buffer(batch->binding.vertex_buffers[1], &(sg_range) {
+        .ptr = batch->colors,
+        .size = batch->vertexCount * sizeof(Vec4)
     });
     sg_apply_bindings(&batch->binding);
     sg_draw(0, 6 * batch->vertexCount, 1);
