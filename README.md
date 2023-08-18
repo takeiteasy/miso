@@ -6,6 +6,14 @@ Mini isometric game engine **WIP**
 
 Nothing to see yet
 
+## TODO
+
+- [ ] Reimplement Map
+    - [ ] Load biomes through json or create manually
+    - [ ] Reimplement Biomes (Repurpose perlin-tool?)
+- [ ] Lua bindings 
+- [ ] Documentation
+
 ## Dependencies
 
 - [floooh/sokol](https://github.com/floooh/sokol) (zlib/libpng)

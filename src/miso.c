@@ -34,6 +34,7 @@ static struct {
         Vector2 mouse_scroll_delta, mouse_delta;
     } input;
     
+    struct hashmap *map;
     sg_pass_action pass_action;
     sg_pass pass;
     sg_pipeline pip;
@@ -1878,7 +1879,7 @@ TextureBatch* CreateTextureBatch(Texture *texture, int maxVertices) {
     return result;
 }
 
-void TextureBatchRender(TextureBatch *batch, Vector2 position, Vector2 size, Vector2 scale, Vector2 viewportSize, float rotation, Rectangle clip) {
+void TextureBatchDraw(TextureBatch *batch, Vector2 position, Vector2 size, Vector2 scale, Vector2 viewportSize, float rotation, Rectangle clip) {
     Vector2 quad[4] = {
         {position.x, position.y + size.y}, // bottom left
         {position.x + size.x, position.y + size.y}, // bottom right
@@ -1919,7 +1920,7 @@ void TextureBatchRender(TextureBatch *batch, Vector2 position, Vector2 size, Vec
     memcpy(&batch->vertices[batch->vertexCount++ * 6], result, 6 * sizeof(Vertex));
 }
 
-void CommitTextureBatch(TextureBatch *batch) {
+void FlushTextureBatch(TextureBatch *batch) {
     if (!batch || !batch->vertexCount)
         return;
     sg_range range = {
@@ -1946,10 +1947,6 @@ typedef struct {
     Texture *texture;
 } TextureBucket;
 
-static struct {
-    struct hashmap *map;
-} TextureManager;
-
 static uint64_t HashBatch(const void *item, uint64_t seed0, uint64_t seed1) {
     TextureBucket *bucket = (TextureBucket*)item;
     return hashmap_sip(bucket->name, strlen(bucket->name), seed0, seed1);
@@ -1966,31 +1963,32 @@ static void FreeBatch(void *item) {
     DestroyTexture(bucket->texture);
 }
 
-void InitTextureManager(void) {
-    TextureManager.map = hashmap_new(sizeof(TextureBucket), 0, 0, 0, HashBatch, CompareBatch, FreeBatch, NULL);
-}
-
 void TextureManagerAdd(const char *path) {
     TextureBucket search = {.name=path};
     TextureBucket *found = NULL;
-    if ((found = hashmap_get(TextureManager.map, (void*)&search)))
+    if ((found = hashmap_get(state.map, (void*)&search)))
         return;
     search.texture = LoadTextureFromFile(path);
     if (sg_query_image_state(search.texture->texture) != SG_RESOURCESTATE_INVALID)
-        hashmap_set(TextureManager.map, (void*)&search);
+        hashmap_set(state.map, (void*)&search);
 }
 
 Texture* TextureManagerGet(const char *path) {
     TextureBucket search = {.name=path};
     TextureBucket *found = NULL;
-    if (!(found = hashmap_get(TextureManager.map, (void*)&search)))
+    if (!(found = hashmap_get(state.map, (void*)&search)))
         return NULL;
     return found->texture;
 }
 
-void DestroyTextureManager(void) {
-    if (TextureManager.map)
-        hashmap_free(TextureManager.map);
+void ClearTextureManager(void) {
+    size_t iter = 0;
+    void *item;
+    while (hashmap_iter(state.map, &iter, &item)) {
+        TextureBucket *bucket = (TextureBucket*)item;
+        DestroyTexture(bucket->texture);
+    }
+    hashmap_clear(state.map, true);
 }
 
 #define ATTR_framebuffer_vs_position (0)
@@ -2749,6 +2747,8 @@ static void InitCallback(void) {
         .cull_mode = SG_CULLMODE_BACK,
     };
     state.pip = sg_make_pipeline(&pip_desc);
+    
+    state.map = hashmap_new(sizeof(TextureBucket), 0, 0, 0, HashBatch, CompareBatch, FreeBatch, NULL);
 }
 
 static void FrameCallback(void) {
@@ -2802,10 +2802,14 @@ static void CleanupCallback(void) {
     sg_destroy_pipeline(state.pip);
     sg_destroy_image(state.color);
     sg_destroy_image(state.depth);
+    if (state.map) {
+        hashmap_clear(state.map, false);
+        hashmap_free(state.map);
+    }
     sg_shutdown();
 }
 
-int RunMiso(const sapp_desc *desc) {
+int OrderUp(const sapp_desc *desc) {
     memcpy(&state.desc, desc, sizeof(sapp_desc));
     state.init_cb = desc->init_cb;
     state.frame_cb = desc->frame_cb;

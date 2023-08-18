@@ -110,7 +110,7 @@ typedef struct {
     Vector2 size;
 } TextureBatch;
 
-int RunMiso(const sapp_desc *desc);
+int OrderUp(const sapp_desc *desc);
 
 int WindowWidth(void);
 int WindowHeight(void);
@@ -155,14 +155,13 @@ Texture* CreateMutableTexture(int w, int h);
 void DestroyTexture(Texture *texture);
 
 TextureBatch* CreateTextureBatch(Texture *texture, int maxVertices);
-void TextureBatchRender(TextureBatch *batch, Vector2 position, Vector2 size, Vector2 scale, Vector2 viewportSize, float rotation, Rectangle clip);
-void CommitTextureBatch(TextureBatch *batch);
+void TextureBatchDraw(TextureBatch *batch, Vector2 position, Vector2 size, Vector2 scale, Vector2 viewportSize, float rotation, Rectangle clip);
+void FlushTextureBatch(TextureBatch *batch);
 void DestroyTextureBatch(TextureBatch *batch);
 
-void InitTextureManager(void);
 void TextureManagerAdd(const char *path);
 Texture* TextureManagerGet(const char *path);
-void DestroyTextureManager(void);
+void ClearTextureManager(void);
 
 float Perlin(float x, float y, float z);
 unsigned char* PerlinFBM(int w, int h, float xoff, float yoff, float z, float scale, float lacunarity, float gain, int octaves);

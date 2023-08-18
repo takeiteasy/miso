@@ -25,7 +25,7 @@ else
 endif
 CC=clang
 SOURCE=$(wildcard src/*.c)
-INCLUDE=-I. -Ideps/
+INCLUDE=-I. -Isrc/ -Ideps/
 ARCH_PATH=./tools/$(ARCH)
 
 SHDC_PATH=$(ARCH_PATH)/sokol-shdc$(PROG_EXT)
@@ -41,9 +41,17 @@ SHADER_OUT=$@
 shaders: $(SHADER_OUTS) cleanup
 
 library:
-	$(CC) $(CFLAGS) -shared -fpic $(INCLUDE) $(SOURCE) $(SOURCE) -o build/libmiso_$(ARCH).dylib
+	$(CC) $(CFLAGS) -shared -fpic $(INCLUDE) $(SOURCE) -o build/libmiso_$(ARCH).dylib
+
+web:
+	emcc -DSOKOL_GLES3 $(INCLUDE) $(SOURCE) -sUSE_WEBGL2=1 -o build/$(NAME).js
+
+test: library
+	$(CC) -Lbuild/ -lmiso_$(ARCH) $(INCLUDE) test.c -o build/test
 	
 default: library
+
+all: library web test cleanup
 
 cleanup:
 	rm assets/*.air

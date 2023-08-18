@@ -26,5 +26,5 @@ int main(int argc, const char *argv[]) {
         .event_cb = event,
         .cleanup_cb = cleanup
     };
-    return RunMiso(&desc);
+    return OrderUp(&desc);
 }
