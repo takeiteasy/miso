@@ -1176,16 +1176,15 @@ void DestroyTexture(Texture *texture) {
     }
 }
 
-TextureBatch* CreateTextureBatch(Texture *texture, int maxVertices) {
+TextureBatch* CreateTextureBatch(Texture *texture, int max) {
     TextureBatch *result = malloc(sizeof(TextureBatch));
-    result->maxVertices = maxVertices;
+    result->maxVertices = max * 6;
     result->vertexCount = 0;
     result->size = (Vector2){texture->w, texture->h};
-    size_t sz = 6 * maxVertices * sizeof(Vertex);
-    result->vertices = malloc(sz);
+    result->vertices = malloc(result->maxVertices * sizeof(Vertex));
     sg_buffer_desc desc = {
         .usage = SG_USAGE_STREAM,
-        .size = sz
+        .size = result->maxVertices * sizeof(Vertex)
     };
     result->bind = (sg_bindings) {
         .vertex_buffers[0] = sg_make_buffer(&desc),
@@ -1195,19 +1194,18 @@ TextureBatch* CreateTextureBatch(Texture *texture, int maxVertices) {
 }
 
 void TextureBatchDraw(TextureBatch *batch, Vector2 position, Vector2 size, Vector2 scale, Vector2 viewportSize, float rotation, Rectangle clip) {
-    Quad quad;
-    GenerateQuad(position, batch->size, size, scale, viewportSize, rotation, clip, &quad);
-    memcpy(&batch->vertices[batch->vertexCount++ * 6], &quad, 6 * sizeof(Vertex));
+    GenerateQuad(position, batch->size, size, scale, viewportSize, rotation, clip, (Quad*)(batch->vertices + batch->vertexCount));
+    batch->vertexCount += 6;
 }
 
 void FlushTextureBatch(TextureBatch *batch) {
     sg_update_buffer(batch->bind.vertex_buffers[0], &(sg_range) {
         .ptr = batch->vertices,
-        .size = 6 * batch->vertexCount * sizeof(Vertex)
+        .size = batch->vertexCount * sizeof(Vertex)
     });
     sg_apply_bindings(&batch->bind);
-    sg_draw(0, 6 * batch->vertexCount, 1);
-    memset(batch->vertices, 0, 6 * batch->maxVertices * sizeof(Vertex));
+    sg_draw(0, batch->vertexCount, 1);
+    memset(batch->vertices, 0, batch->maxVertices * sizeof(Vertex));
     batch->vertexCount = 0;
 }
 
