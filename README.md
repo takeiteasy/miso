@@ -12,6 +12,7 @@ Nothing to see yet
 - [ ] Lua bindings 
 - [ ] Documentation
 - [ ] Use sokol_fetch for file loading
+- [ ] Debug text rendering
 
 ## Dependencies
 
@@ -19,12 +20,6 @@ Nothing to see yet
     - sokol_gfx.h
     - sokol_app.h
     - sokol_glue.h
-- [tidwall/hashmap.c](https://github.com/tidwall/hashmap.c) (MIT)
-    - hashmap.h
-- [esr/microjson](https://gitlab.com/esr/microjson/) (BSD-2-clause)
-    - mjson.h
-- [tsoding/jim](https://github.com/tsoding/jim) (MIT)
-    - jim.h
 - [erkkah/tigr](https://github.com/erkkah/tigr/blob/master/src/tigr_loadpng.c) (UNLICENSE)
     - Extracted and slightly modified .png loading+saving from tigr_loadpng.c+tigr_savepng.c
 

@@ -33,8 +33,6 @@ typedef enum bool { false = 0, true = !false } bool;
 #include "sokol_app.h"
 #include "sokol_gfx.h"
 #include "sokol_glue.h"
-#include "mjson.h"
-#include "jim.h"
 
 #if defined(__EMSCRIPTEN__) || defined(EMSCRIPTEN)
 #include <emscripten.h>

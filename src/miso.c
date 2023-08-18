@@ -8,9 +8,6 @@
 
 #define SOKOL_IMPL
 #define SOKOL_NO_ENTRY
-#define HASHMAP_IMPL
-#define MJSON_IMPLEMENTATION
-#define JIM_IMPLEMENTATION
 #include "miso.h"
 #include "../assets/sprite.glsl.h"
 #include "../assets/framebuffer.glsl.h"
