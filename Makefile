@@ -25,28 +25,30 @@ else
 endif
 CC=clang
 SOURCE=$(wildcard src/*.c)
-EXE=build/colony_$(ARCH)$(PROG_EXT)
+INCLUDE=-I. -Ideps/
 ARCH_PATH=./tools/$(ARCH)
 
 SHDC_PATH=$(ARCH_PATH)/sokol-shdc$(PROG_EXT)
 SHADERS=$(wildcard assets/*.glsl)
 SHADER_OUTS=$(patsubst %,%.h,$(SHADERS))
 
-all: app
-
 .SECONDEXPANSION:
 SHADER=$(patsubst %.h,%,$@)
 SHADER_OUT=$@
 %.glsl.h: $(SHADERS)
-	$(SHDC_PATH) -i $(SHADER) -o $(SHADER_OUT) -l $(SHDC_FLAGS)
-	mv $(SHADER_OUT) build/
+	$(SHDC_PATH) -i $(SHADER) -o $(SHADER_OUT) -l glsl330:metal_macos:hlsl5 -b
 
-shaders: $(SHADER_OUTS)
+shaders: $(SHADER_OUTS) cleanup
 
-app: shaders
-	$(CC) -Ibuild -Ideps -fenable-matrix $(CFLAGS) $(SOURCE) -o $(EXE)
+library:
+	$(CC) $(CFLAGS) -shared -fpic $(INCLUDE) $(SOURCE) $(SOURCE) -o build/libmiso_$(ARCH).dylib
+	
+default: library
 
-run: $(EXE)
-	./$(EXE)
+cleanup:
+	rm assets/*.air
+	rm assets/*.dia
+	rm assets/*.metal
+	rm assets/*.metallib
 
-.PHONY: all app shaders models run assets images
+.PHONY: library shaders

@@ -1,64 +1,48 @@
-# "Colony"
+# miso
 
-**WIP** RTS game build on top of sokol.
+Mini isometric game engine **WIP**
 
 ## Gallery
 
 Nothing to see yet
 
-## Acknowledgments
-
-### Dependencies
+## Dependencies
 
 - [floooh/sokol](https://github.com/floooh/sokol) (zlib/libpng)
     - sokol_gfx.h
     - sokol_app.h
     - sokol_glue.h
-    - sokol_audio.h
-    - sokol_args.h
-    - sokol_time.h
-    - sokol_nuklear.h
-- [Immediate-Mode-UI/Nuklear](https://github.com/Immediate-Mode-UI/Nuklear) (MIT/Public Domain)
-    - nuklear.h
 - [tidwall/hashmap.c](https://github.com/tidwall/hashmap.c) (MIT)
     - hashmap.h
 - [esr/microjson](https://gitlab.com/esr/microjson/) (BSD-2-clause)
     - mjson.h
-    
-### References
-
+- [tsoding/jim](https://github.com/tsoding/jim) (MIT)
+    - jim.h
 - [erkkah/tigr](https://github.com/erkkah/tigr/blob/master/src/tigr_loadpng.c) (UNLICENSE)
     - Extracted and slightly modified .png loading+saving from tigr_loadpng.c+tigr_savepng.c
-- [rdadolf/prng](https://github.com/rdadolf/prng) (Public Domain)
-    - Only superficial changes made 
-
-### Assets
-
-- hand.png by [kicked-in-teeth](https://kicked-in-teeth.itch.io/grab-hand)
-- man.png by [momeg](https://momeg.itch.io/micro-character-bases)
 
 ## LICENSE
 ```
-“Commons Clause” License Condition v1.0
+The MIT License (MIT)
 
-The Software is provided to you by the Licensor under the License, as defined
-below, subject to the following condition.
+Copyright (c) 2022 George Watson
 
-Without limiting other conditions in the License, the grant of rights under the
-License will not include, and the License does not grant to you, the right to
-Sell the Software.
+Permission is hereby granted, free of charge, to any person
+obtaining a copy of this software and associated documentation
+files (the "Software"), to deal in the Software without restriction,
+including without limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of the Software,
+and to permit persons to whom the Software is furnished to do so,
+subject to the following conditions:
 
-For purposes of the foregoing, “Sell” means practicing any or all of the rights
-granted to you under the License to provide to third parties, for a fee or
-other consideration (including without limitation fees for hosting or
-consulting/ support services related to the Software), a product or service
-whose value derives, entirely or substantially, from the functionality of the
-Software. Any license notice or attribution required by the License must also
-include this Commons Clause License Condition notice.
+The above copyright notice and this permission notice shall be
+included in all copies or substantial portions of the Software.
 
-Software: "Colony"
-
-License: GNU General Public License v3 (GPL-3)
-
-Licensor: George Watson (takeiteasy)
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```

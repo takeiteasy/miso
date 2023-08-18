@@ -5,3 +5,7 @@
 *.plist
 *.xcscheme
 build/
+*.air
+*.dia
+*.metal
+*.metallib
