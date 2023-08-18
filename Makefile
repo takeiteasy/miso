@@ -59,4 +59,4 @@ cleanup:
 	rm assets/*.metal
 	rm assets/*.metallib
 
-.PHONY: library shaders
+.PHONY: library shaders web test cleanup default all

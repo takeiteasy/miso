@@ -33,7 +33,6 @@ typedef enum bool { false = 0, true = !false } bool;
 #include "sokol_app.h"
 #include "sokol_gfx.h"
 #include "sokol_glue.h"
-#include "hashmap.h"
 #include "mjson.h"
 #include "jim.h"
 
@@ -80,6 +79,10 @@ typedef struct {
 } Vector2;
 
 typedef struct {
+    float x, y, z, w;
+} Vector4;
+
+typedef struct {
     float x, y, w, h;
 } Rectangle;
 
@@ -96,17 +99,18 @@ typedef struct {
 
 typedef struct {
     Vector2 position, texcoord;
+    Vector4 color;
 } Vertex;
 
 typedef struct {
-    sg_image texture;
+    sg_image sg;
     int w, h;
 } Texture;
 
 typedef struct {
     Vertex *vertices;
     int maxVertices, vertexCount;
-    sg_bindings binding;
+    sg_bindings bind;
     Vector2 size;
 } TextureBatch;
 
@@ -120,6 +124,7 @@ int IsCursorVisible(void);
 void ToggleCursorVisible(void);
 int IsCursorLocked(void);
 void ToggleCursorLock(void);
+void SetClearColor(Color color);
 
 bool IsKeyDown(sapp_keycode key);
 bool IsKeyUp(sapp_keycode key);
@@ -150,18 +155,15 @@ bool SaveImage(Image *img, const char *path);
 
 Texture* LoadTextureFromImage(Image *img);
 Texture* LoadTextureFromFile(const char *path);
-Texture* LoadTextureFromMemory(const void *data, size_t length);
 Texture* CreateMutableTexture(int w, int h);
+void UpdateMutableTexture(Texture *texture, Image *img);
+void DrawTexture(Texture *texture, Vector2 position, Vector2 size, Vector2 scale, Vector2 viewportSize, float rotation, Rectangle clip);
 void DestroyTexture(Texture *texture);
 
 TextureBatch* CreateTextureBatch(Texture *texture, int maxVertices);
 void TextureBatchDraw(TextureBatch *batch, Vector2 position, Vector2 size, Vector2 scale, Vector2 viewportSize, float rotation, Rectangle clip);
 void FlushTextureBatch(TextureBatch *batch);
 void DestroyTextureBatch(TextureBatch *batch);
-
-void TextureManagerAdd(const char *path);
-Texture* TextureManagerGet(const char *path);
-void ClearTextureManager(void);
 
 float Perlin(float x, float y, float z);
 unsigned char* PerlinFBM(int w, int h, float xoff, float yoff, float z, float scale, float lacunarity, float gain, int octaves);

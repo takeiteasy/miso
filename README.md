@@ -9,10 +9,9 @@ Nothing to see yet
 ## TODO
 
 - [ ] Reimplement Map
-    - [ ] Load biomes through json or create manually
-    - [ ] Reimplement Biomes (Repurpose perlin-tool?)
 - [ ] Lua bindings 
 - [ ] Documentation
+- [ ] Use sokol_fetch for file loading
 
 ## Dependencies
 
