@@ -37,6 +37,10 @@ static struct {
     } input;
     
     sg_pass_action pass_action;
+    sg_pass pass;
+    sg_pipeline framebuffer_pip, offscreen_pip;
+    sg_bindings bind;
+    sg_image color, depth;
 } state = {
     .pass_action = {
         .colors[0] = { .action=SG_ACTION_CLEAR, .value={0.f, 0.f, 0.f, 1.f} }
@@ -1093,11 +1097,75 @@ Texture* CreateMutableTexture(int w, int h) {
 }
 
 void UpdateMutableTexture(Texture *texture, Image *img) {
+    if (texture->w != img->w || texture->h != img->h) {
+        DestroyTexture(texture);
+        texture = CreateMutableTexture(img->w, img->h);
+    }
+    sg_image_data data = {
+        .subimage[0][0] = (sg_range) {
+            .ptr = img->buf,
+            .size = img->w * img->h * sizeof(int)
+        }
+    };
+    sg_update_image(texture->sg, &data);
+}
+
+typedef Vertex Quad[6];
+
+static void GenerateQuad(Vector2 position, Vector2 textureSize, Vector2 size, Vector2 scale, Vector2 viewportSize, float rotation, Rectangle clip, Quad *out) {
+    Vector2 scaledSize = {size.x * scale.x, size.y * scale.y};
+    Vector2 quad[4] = {
+        {position.x, position.y + scaledSize.y}, // bottom left
+        {position.x + scaledSize.x, position.y + scaledSize.y}, // bottom right
+        {position.x + scaledSize.x, position.y }, // top right
+        {position.x, position.y }, // top left
+    };
+    float vw =  2.f / (float)viewportSize.x;
+    float vh = -2.f / (float)viewportSize.y;
+    for (int j = 0; j < 4; j++)
+        quad[j] = (Vector2) {
+            vw * quad[j].x + -1.f,
+            vh * quad[j].y +  1.f
+        };
     
+    float iw = 1.f/textureSize.x, ih = 1.f/(float)textureSize.y;
+    float tl = clip.x*iw;
+    float tt = clip.y*ih;
+    float tr = (clip.x + clip.w)*iw;
+    float tb = (clip.y + clip.h)*ih;
+    Vector2 vtexquad[4] = {
+        {tl, tb}, // bottom left
+        {tr, tb}, // bottom right
+        {tr, tt}, // top right
+        {tl, tt}, // top left
+    };
+    
+    static int indices[6] = {
+        0, 1, 2,
+        3, 0, 2
+    };
+    
+    for (int i = 0; i < 6; i++)
+        (*out)[i] = (Vertex) {
+            .position = quad[indices[i]],
+            .texcoord = vtexquad[indices[i]],
+            .color = {0.f, 0.f, 0.f, 1.f}
+        };
 }
 
 void DrawTexture(Texture *texture, Vector2 position, Vector2 size, Vector2 scale, Vector2 viewportSize, float rotation, Rectangle clip) {
-    
+    Quad quad;
+    GenerateQuad(position, (Vector2){texture->w, texture->h}, size, scale, viewportSize, rotation, clip, &quad);
+    sg_buffer_desc desc = {
+        .data = SG_RANGE(quad)
+    };
+    sg_bindings bind = {
+        .vertex_buffers[0] = sg_make_buffer(&desc),
+        .fs_images[SLOT_sprite] = texture->sg
+    };
+    sg_apply_bindings(&bind);
+    sg_draw(0, 6, 1);
+    sg_destroy_buffer(bind.vertex_buffers[0]);
 }
 
 void DestroyTexture(Texture *texture) {
@@ -1127,49 +1195,9 @@ TextureBatch* CreateTextureBatch(Texture *texture, int maxVertices) {
 }
 
 void TextureBatchDraw(TextureBatch *batch, Vector2 position, Vector2 size, Vector2 scale, Vector2 viewportSize, float rotation, Rectangle clip) {
-    Vector2 quad[4] = {
-        {position.x,          position.y + size.y}, // bottom left
-        {position.x + size.x, position.y + size.y}, // bottom right
-        {position.x + size.x, position.y         }, // top right
-        {position.x,          position.y         }, // top left
-    };
-    float vw =  2.f / (float)viewportSize.x;
-    float vh = -2.f / (float)viewportSize.y;
-    for (int j = 0; j < 4; j++)
-        quad[j] = (Vector2) {
-            vw * quad[j].x + -1.f,
-            vh * quad[j].y +  1.f
-        };
-    
-    Vertex *v = &batch->vertices[batch->vertexCount++ * 6];
-    v[0].position = quad[0];
-    v[1].position = quad[1];
-    v[2].position = quad[2];
-    v[3].position = quad[3];
-    v[4].position = quad[0];
-    v[5].position = quad[2];
-    
-    for (int i = 0; i < 6; i++)
-        v[i].color = (Vector4){0.f,0.f,0.f,1.f};
-    
-    float iw = 1.f/batch->size.x, ih = 1.f/(float)batch->size.y;
-    float tl = clip.x*iw;
-    float tt = clip.y*ih;
-    float tr = (clip.x + clip.w)*iw;
-    float tb = (clip.y + clip.h)*ih;
-    Vector2 vtexquad[4] = {
-        {tl, tb}, // bottom left
-        {tr, tb}, // bottom right
-        {tr, tt}, // top right
-        {tl, tt}, // top left
-    };
-    
-    v[0].texcoord = vtexquad[0];
-    v[1].texcoord = vtexquad[1];
-    v[2].texcoord = vtexquad[2];
-    v[3].texcoord = vtexquad[3];
-    v[4].texcoord = vtexquad[0];
-    v[5].texcoord = vtexquad[2];
+    Quad quad;
+    GenerateQuad(position, batch->size, size, scale, viewportSize, rotation, clip, &quad);
+    memcpy(&batch->vertices[batch->vertexCount++ * 6], &quad, 6 * sizeof(Vertex));
 }
 
 void FlushTextureBatch(TextureBatch *batch) {
@@ -1204,16 +1232,113 @@ static void InitCallback(void) {
     };
     sg_setup(&desc);
     
+    sg_image_desc img_desc = {
+        .render_target = true,
+        .width = 640,
+        .height = 480,
+        .pixel_format = SG_PIXELFORMAT_RGBA8,
+        .min_filter = SG_FILTER_NEAREST,
+        .mag_filter = SG_FILTER_NEAREST,
+        .wrap_u = SG_WRAP_REPEAT,
+        .wrap_v = SG_WRAP_REPEAT
+    };
+    state.color = sg_make_image(&img_desc);
+    img_desc.pixel_format = SG_PIXELFORMAT_DEPTH;
+    state.depth = sg_make_image(&img_desc);
+    state.pass = sg_make_pass(&(sg_pass_desc){
+        .color_attachments[0].image = state.color,
+        .depth_stencil_attachment.image = state.depth
+    });
+    
+    const float vertices[] = {
+        // pos      // uv
+        -1.f,  1.f, 0.f, 1.f,
+         1.f,  1.f, 1.f, 1.f,
+         1.f, -1.f, 1.f, 0.f,
+        -1.f, -1.f, 0.f, 0.f,
+    };
+    const uint16_t indices[] = {
+        0, 1, 2,
+        0, 2, 3
+    };
+    state.bind = (sg_bindings) {
+        .vertex_buffers[0] =  sg_make_buffer(&(sg_buffer_desc){
+            .data = SG_RANGE(vertices)
+        }),
+        .index_buffer = sg_make_buffer(&(sg_buffer_desc){
+            .type = SG_BUFFERTYPE_INDEXBUFFER,
+            .data = SG_RANGE(indices),
+        }),
+        .fs_images = state.color
+    };
+    
+    sg_pipeline_desc framebuffer_desc = {
+        .shader = sg_make_shader(framebuffer_program_shader_desc(sg_query_backend())),
+        .primitive_type = SG_PRIMITIVETYPE_TRIANGLES,
+        .index_type = SG_INDEXTYPE_UINT16,
+        .layout = {
+            .attrs = {
+                [0].format = SG_VERTEXFORMAT_FLOAT2,
+                [1].format = SG_VERTEXFORMAT_FLOAT2,
+            }
+        },
+        .depth = {
+            .compare = SG_COMPAREFUNC_LESS_EQUAL,
+            .write_enabled = true
+        },
+        .cull_mode = SG_CULLMODE_BACK,
+    };
+    state.framebuffer_pip = sg_make_pipeline(&framebuffer_desc);
+    
+    sg_pipeline_desc offscreen_desc = {
+        .primitive_type = SG_PRIMITIVETYPE_TRIANGLES,
+        .shader = sg_make_shader(sprite_program_shader_desc(sg_query_backend())),
+        .layout = {
+            .buffers[0].stride = sizeof(Vertex),
+            .attrs = {
+                [ATTR_sprite_vs_position].format=SG_VERTEXFORMAT_FLOAT2,
+                [ATTR_sprite_vs_texcoord].format=SG_VERTEXFORMAT_FLOAT2,
+                [ATTR_sprite_vs_color].format=SG_VERTEXFORMAT_FLOAT4
+            }
+        },
+        .depth = {
+            .pixel_format = SG_PIXELFORMAT_DEPTH,
+            .compare = SG_COMPAREFUNC_LESS_EQUAL,
+            .write_enabled = true,
+        },
+        .colors[0] = {
+            .blend = {
+                .enabled = true,
+                .src_factor_rgb = SG_BLENDFACTOR_SRC_ALPHA,
+                .dst_factor_rgb = SG_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
+                .op_rgb = SG_BLENDOP_ADD,
+                .src_factor_alpha = SG_BLENDFACTOR_ONE,
+                .dst_factor_alpha = SG_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
+                .op_alpha = SG_BLENDOP_ADD
+            },
+            .pixel_format = SG_PIXELFORMAT_RGBA8
+        }
+    };
+    state.offscreen_pip = sg_make_pipeline(&offscreen_desc);
+    
     if (state.init_cb)
         state.init_cb();
 }
 
 static void FrameCallback(void) {
-    const int width = sapp_width();
-    const int height = sapp_height();
-    
+    sg_begin_pass(state.pass, &state.pass_action);
+    sg_apply_pipeline(state.offscreen_pip);
     if (state.frame_cb)
         state.frame_cb();
+    sg_end_pass();
+    
+    sg_begin_default_pass(&state.pass_action, 640, 480);
+    sg_apply_pipeline(state.framebuffer_pip);
+    sg_apply_bindings(&state.bind);
+    sg_draw(0, 6, 1);
+    sg_end_pass();
+    
+    sg_commit();
     
     state.input.mouse_delta = state.input.mouse_scroll_delta = (Vector2){0};
     for (int i = 0; i < SAPP_MAX_KEYCODES; i++)
