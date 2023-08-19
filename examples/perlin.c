@@ -164,14 +164,14 @@ static void init(void) {
     };
     sg_setup(&desc);
     
-    OrderMiso(sapp_width(), sapp_height());
+    OrderMiso();
     
     state.camera = (Vector2) {
         MAP_SIZE * TILE_WIDTH / 2.f,
         MAP_SIZE * (TILE_HEIGHT / 2.f) / 2.f
     };
     state.texture = LoadTextureFromFile("assets/tiles.png");
-    state.map = CreateMap(state.texture, MAP_SIZE, MAP_SIZE, TILE_WIDTH, TILE_HEIGHT);
+    state.map = CreateChunk(state.texture, MAP_SIZE, MAP_SIZE, TILE_WIDTH, TILE_HEIGHT);
     unsigned char *noise = PerlinFBM(MAP_SIZE, MAP_SIZE, 0.f, 0.f, 0.f, 200.f, 2.f, .5f, 8);
     for (int x = 0; x < MAP_SIZE; x++)
         for (int y = 0; y < MAP_SIZE; y++) {
@@ -182,7 +182,7 @@ static void init(void) {
 }
 
 static void frame(void) {
-    OrderUp();
+    OrderUp(sapp_width(), sapp_height());
     DrawChunk(state.map, state.camera);
     FinishMiso();
     sg_commit();

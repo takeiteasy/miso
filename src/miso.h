@@ -103,14 +103,15 @@ typedef struct {
 typedef struct {
     TextureBatch *batch;
     int *grid;
-    Vector2 tileSize;
+    float tileW, tileH;
     int w, h;
 } Chunk;
 
-EXPORT void OrderMiso(unsigned int width, unsigned int height);
-EXPORT void OrderUp(void);
-EXPORT void FinishMiso(void);
-EXPORT void CleanUpMiso(void);
+EXPORT Chunk* CreateChunk(Texture *texture, int w, int h, int tw, int th);
+EXPORT int ChunkAt(Chunk *chunk, int x, int y);
+EXPORT void ChunkSet(Chunk *chunk, int x, int y, int value);
+EXPORT void DrawChunk(Chunk *chunk, Vector2 cameraPosition);
+EXPORT void DestroyChunk(Chunk *chunk);
 
 EXPORT Image* CreateImage(unsigned int w, unsigned int h);
 EXPORT void DestroyImage(Image *img);
@@ -132,11 +133,10 @@ EXPORT void TextureBatchDraw(TextureBatch *batch, Vector2 position, Vector2 size
 EXPORT void FlushTextureBatch(TextureBatch *batch);
 EXPORT void DestroyTextureBatch(TextureBatch *batch);
 
-EXPORT Chunk* CreateMap(Texture *texture, int w, int h, int tw, int th);
-EXPORT int ChunkAt(Chunk *chunk, int x, int y);
-EXPORT void ChunkSet(Chunk *chunk, int x, int y, int value);
-EXPORT void DrawChunk(Chunk *chunk, Vector2 cameraPosition);
-EXPORT void DestroyChunk(Chunk *chunk);
+EXPORT void OrderMiso(void);
+EXPORT void OrderUp(unsigned int width, unsigned int height);
+EXPORT void FinishMiso(void);
+EXPORT void CleanUpMiso(void);
 
 #if defined(__cplusplus)
 }

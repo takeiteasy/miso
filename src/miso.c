@@ -27,6 +27,57 @@ static struct {
     }
 };
 
+Chunk* CreateChunk(Texture *texture, int w, int h, int tileW, int tileH) {
+    Chunk *result = malloc(sizeof(Chunk));
+    result->batch = CreateTextureBatch(texture, w * h);
+    size_t sz = w * h * sizeof(int);
+    result->grid = malloc(sz);
+    memset(result->grid, 0, sz);
+    result->w = w;
+    result->h = h;
+    result->tileW = tileW;
+    result->tileH = tileH;
+    return result;
+}
+
+int ChunkAt(Chunk *chunk, int x, int y) {
+    assert(x >= 0 && x < chunk->w && y >= 0 && y < chunk->h);
+    return chunk->grid[y * chunk->w + x];
+}
+
+void ChunkSet(Chunk *chunk, int x, int y, int value) {
+    assert(x >= 0 && x < chunk->w && y >= 0 && y < chunk->h);
+    assert(value < (chunk->w / chunk->tileW));
+    chunk->grid[y * chunk->w + x] = value;
+}
+
+void DrawChunk(Chunk *chunk, Vector2 cameraPosition) {
+    Vector2 halfTileSize = {chunk->tileW / 2.f, chunk->tileH / 2.f};
+    Vector2 offset = {
+        .x = halfTileSize.x + (-cameraPosition.x + state.size.x / 2),
+        .y = halfTileSize.y + (-cameraPosition.y + state.size.y / 2)
+    };
+    for (int x = 0; x < chunk->w; x++)
+        for (int y = 0; y < chunk->h; y++) {
+            Vector2 p = (Vector2) {
+                offset.x + ((float)x * chunk->tileW) + (y % 2 ? halfTileSize.x : 0),
+                offset.y + ((float)y * chunk->tileH) - (y * halfTileSize.y)
+            };
+            TextureBatchDraw(chunk->batch, (Vector2){p.x - halfTileSize.x, p.y - halfTileSize.y}, (Vector2){chunk->tileW, chunk->tileH}, (Vector2){1.f, 1.f}, state.size, 0.f, (Rectangle){ChunkAt(chunk, x, y) * chunk->tileW, 0, chunk->tileW, chunk->tileH});
+        }
+    FlushTextureBatch(chunk->batch);
+}
+
+void DestroyChunk(Chunk *chunk) {
+    if (chunk) {
+        if (chunk->batch)
+            DestroyTextureBatch(chunk->batch);
+        if (chunk->grid)
+            free(chunk->grid);
+        free(chunk);
+    }
+}
+
 static char* LoadFile(const char *path, size_t *length) {
     char *result = NULL;
     size_t sz = -1;
@@ -1678,56 +1729,6 @@ void DestroyTextureBatch(TextureBatch *batch) {
     }
 }
 
-Chunk* CreateMap(Texture *texture, int w, int h, int tw, int th) {
-    Chunk *result = malloc(sizeof(Chunk));
-    result->batch = CreateTextureBatch(texture, w * h);
-    size_t sz = w * h * sizeof(int);
-    result->grid = malloc(sz);
-    memset(result->grid, 0, sz);
-    result->w = w;
-    result->h = h;
-    result->tileSize = (Vector2){tw, th};
-    return result;
-}
-
-int ChunkAt(Chunk *chunk, int x, int y) {
-    assert(x >= 0 && x < chunk->w && y >= 0 && y < chunk->h);
-    return chunk->grid[y * chunk->w + x];
-}
-
-void ChunkSet(Chunk *chunk, int x, int y, int value) {
-    assert(x >= 0 && x < chunk->w && y >= 0 && y < chunk->h);
-    assert(value < (chunk->w / chunk->tileSize.x));
-    chunk->grid[y * chunk->w + x] = value;
-}
-
-void DrawChunk(Chunk *chunk, Vector2 cameraPosition) {
-    Vector2 halfTileSize = {chunk->tileSize.x / 2.f, chunk->tileSize.y / 2.f};
-    Vector2 offset = {
-        .x = halfTileSize.x + (-cameraPosition.x + state.size.x / 2),
-        .y = halfTileSize.y + (-cameraPosition.y + state.size.y / 2)
-    };
-    for (int x = 0; x < chunk->w; x++)
-        for (int y = 0; y < chunk->h; y++) {
-            Vector2 p = (Vector2) {
-                offset.x + ((float)x * chunk->tileSize.x) + (y % 2 ? halfTileSize.x : 0),
-                offset.y + ((float)y * chunk->tileSize.y) - (y * halfTileSize.y)
-            };
-            TextureBatchDraw(chunk->batch, (Vector2){p.x - halfTileSize.x, p.y - halfTileSize.y}, chunk->tileSize, (Vector2){1.f, 1.f}, state.size, 0.f, (Rectangle){ChunkAt(chunk, x, y) * chunk->tileSize.x, 0, chunk->tileSize.x, chunk->tileSize.y});
-        }
-    FlushTextureBatch(chunk->batch);
-}
-
-void DestroyChunk(Chunk *chunk) {
-    if (chunk) {
-        if (chunk->batch)
-            DestroyTextureBatch(chunk->batch);
-        if (chunk->grid)
-            free(chunk->grid);
-        free(chunk);
-    }
-}
-
 #if !defined(MISO_DISABLE_FRAMEBUFFER)
 #if defined(MISO_LOAD_FRAMEBUFFER_SHADER)
 #include "../assets/framebuffer.glsl.h"
@@ -2418,11 +2419,17 @@ static inline const sg_shader_desc* framebuffer_program_shader_desc(sg_backend b
 #endif
 #endif
 
-void OrderMiso(unsigned int width, unsigned int height) {
-    assert(!state.initialized);
-    state.initialized = true;
-    
-#if !defined(MISO_DISABLE_FRAMEBUFFER)
+static void DestroyFramebuffer(void) {
+    if (sg_query_pass_state(state.pass) != SG_RESOURCESTATE_INVALID)
+        sg_destroy_pass(state.pass);
+    if (sg_query_image_state(state.color) != SG_RESOURCESTATE_INVALID)
+        sg_destroy_image(state.color);
+    if (sg_query_image_state(state.depth) != SG_RESOURCESTATE_INVALID)
+        sg_destroy_image(state.depth);
+}
+
+static void BuildFramebuffer(int width, int height) {
+    DestroyFramebuffer();
     state.size = (Vector2){width, height};
     
     sg_image_desc img_desc = {
@@ -2438,11 +2445,20 @@ void OrderMiso(unsigned int width, unsigned int height) {
     state.color = sg_make_image(&img_desc);
     img_desc.pixel_format = SG_PIXELFORMAT_DEPTH;
     state.depth = sg_make_image(&img_desc);
-    state.pass = sg_make_pass(&(sg_pass_desc){
+    sg_pass_desc pass_desc = {
         .color_attachments[0].image = state.color,
         .depth_stencil_attachment.image = state.depth
-    });
+    };
+    state.pass = sg_make_pass(&pass_desc);
+    state.bind.fs_images[0] = state.color;
+}
+
+void OrderMiso(void) {
+    assert(!state.initialized);
+    state.initialized = true;
+    state.size = (Vector2){-1, -1};
     
+#if !defined(MISO_DISABLE_FRAMEBUFFER)
     const float vertices[] = {
         // pos      // uv
         -1.f,  1.f, 0.f, 1.f,
@@ -2454,15 +2470,16 @@ void OrderMiso(unsigned int width, unsigned int height) {
         0, 1, 2,
         0, 2, 3
     };
+    sg_buffer_desc vbuf_desc = {
+        .data = SG_RANGE(vertices)
+    };
+    sg_buffer_desc ibuf_desc = {
+        .type = SG_BUFFERTYPE_INDEXBUFFER,
+        .data = SG_RANGE(indices),
+    };
     state.bind = (sg_bindings) {
-        .vertex_buffers[0] =  sg_make_buffer(&(sg_buffer_desc){
-            .data = SG_RANGE(vertices)
-        }),
-        .index_buffer = sg_make_buffer(&(sg_buffer_desc){
-            .type = SG_BUFFERTYPE_INDEXBUFFER,
-            .data = SG_RANGE(indices),
-        }),
-        .fs_images = state.color
+        .vertex_buffers[0] = sg_make_buffer(&vbuf_desc),
+        .index_buffer = sg_make_buffer(&ibuf_desc),
     };
     
     sg_pipeline_desc framebuffer_desc = {
@@ -2516,7 +2533,11 @@ void OrderMiso(unsigned int width, unsigned int height) {
     state.offscreen_pip = sg_make_pipeline(&offscreen_desc);
 }
 
-void OrderUp(void) {
+void OrderUp(unsigned int width, unsigned int height) {
+#if !defined(MISO_DISABLE_FRAMEBUFFER)
+    if (state.size.x != width || state.size.y != height)
+        BuildFramebuffer(width, height);
+#endif
     assert(!state.inProgress);
     state.inProgress = true;
 #if !defined(MISO_DISABLE_FRAMEBUFFER)
@@ -2544,11 +2565,9 @@ void CleanUpMiso(void) {
     assert(state.initialized);
     state.initialized = false;
 #if !defined(MISO_DISABLE_FRAMEBUFFER)
-    sg_destroy_pass(state.pass);
+    DestroyFramebuffer();
     sg_destroy_pipeline(state.framebuffer_pip);
     sg_destroy_buffer(state.bind.vertex_buffers[0]);
-    sg_destroy_image(state.color);
-    sg_destroy_image(state.depth);
 #endif
     sg_destroy_pipeline(state.offscreen_pip);
 }

@@ -71,6 +71,7 @@ clean:
 	rm assets/*.metallib || true
 
 veryclean: clean
+	rm assets/*.glsl.h || true
 	rm $(OUTS) || true
 
 all: shaders default clean

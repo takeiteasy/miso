@@ -26,15 +26,15 @@ static void init(void) {
     };
     sg_setup(&desc);
     
-    OrderMiso(sapp_width(), sapp_height());
+    OrderMiso();
     
     state.camera = (Vector2){0.f, 0.f};
     state.texture = LoadTextureFromFile("assets/tiles.png");
-    state.map = CreateMap(state.texture, MAP_SIZE, MAP_SIZE, TILE_WIDTH, TILE_HEIGHT);
+    state.map = CreateChunk(state.texture, MAP_SIZE, MAP_SIZE, TILE_WIDTH, TILE_HEIGHT);
 }
 
 static void frame(void) {
-    OrderUp();
+    OrderUp(sapp_width(), sapp_height());
     DrawChunk(state.map, state.camera);
     FinishMiso();
     sg_commit();
