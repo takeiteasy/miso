@@ -27,10 +27,6 @@ static void frame(void) {
     DrawChunk(state.map, state.camera.position, state.camera.size);
 }
 
-static void event(const sapp_event *event) {
-    
-}
-
 static void cleanup(void) {
     DestroyTexture(state.texture);
     DestroyChunk(state.map);
@@ -43,7 +39,6 @@ int main(int argc, const char *argv[]) {
         .window_title = "miso!",
         .init_cb = init,
         .frame_cb = frame,
-        .event_cb = event,
         .cleanup_cb = cleanup
     };
     return OrderUp(&desc);

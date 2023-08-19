@@ -38,20 +38,20 @@ SHADER_OUT=$@
 %.glsl.h: $(SHADERS)
 	$(SHDC_PATH) -i $(SHADER) -o $(SHADER_OUT) -l glsl330:metal_macos:hlsl5 -b
 
-shaders: $(SHADER_OUTS) cleanup
+shaders: $(SHADER_OUTS)
 
 library:
 	$(CC) $(CFLAGS) -shared -fpic $(INCLUDE) $(SOURCE) -o build/libmiso_$(ARCH).dylib
 
 web:
-	emcc -DSOKOL_GLES3 $(INCLUDE) $(SOURCE) -sUSE_WEBGL2=1 -o build/$(NAME).js
+	emcc -DSOKOL_GLES3 $(INCLUDE) $(SOURCE) -sUSE_WEBGL2=1 -o build/miso.js
 
 test: library
 	$(CC) -Lbuild/ -lmiso_$(ARCH) $(INCLUDE) test.c -o build/test
 	
 default: library
 
-all: library web test cleanup
+all: shaders library web test cleanup
 
 cleanup:
 	rm assets/*.air

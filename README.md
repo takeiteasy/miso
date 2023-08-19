@@ -2,17 +2,18 @@
 
 Mini isometric game engine **WIP**
 
+## Features 
+
+- [X] Cross platform -- Windows, Linux, Mac + Web
+- [X] Simple texture batching
+- [X] Built-in .png loading+saving (Credit to [erkkah/tigr](https://github.com/erkkah/tigr/))
+- [X] Built-in perlin+fbm functions
+- [ ] Lua bindings 
+- [ ] Documentation
+
 ## Gallery
 
 Nothing to see yet
-
-## TODO
-
-- [ ] Reimplement Map
-- [ ] Lua bindings 
-- [ ] Documentation
-- [ ] Use sokol_fetch for file loading
-- [ ] Debug text rendering
 
 ## Dependencies
 
@@ -20,8 +21,6 @@ Nothing to see yet
     - sokol_gfx.h
     - sokol_app.h
     - sokol_glue.h
-- [erkkah/tigr](https://github.com/erkkah/tigr/blob/master/src/tigr_loadpng.c) (UNLICENSE)
-    - Extracted and slightly modified .png loading+saving from tigr_loadpng.c+tigr_savepng.c
 
 ## LICENSE
 ```

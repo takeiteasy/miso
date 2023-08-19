@@ -106,29 +106,6 @@ typedef struct {
 
 int OrderUp(const sapp_desc *desc);
 
-int WindowWidth(void);
-int WindowHeight(void);
-int IsWindowFullscreen(void);
-void ToggleFullscreen(void);
-int IsCursorVisible(void);
-void ToggleCursorVisible(void);
-int IsCursorLocked(void);
-void ToggleCursorLock(void);
-void SetClearColor(Color color);
-
-bool IsKeyDown(sapp_keycode key);
-bool IsKeyUp(sapp_keycode key);
-bool WasKeyPressed(sapp_keycode key);
-bool IsButtonDown(sapp_mousebutton button);
-bool IsButtonUp(sapp_mousebutton button);
-bool WasButtonPressed(sapp_mousebutton button);
-bool WasMouseScrolled(void);
-bool WasMouseMoved(void);
-Vector2 MousePosition(void);
-Vector2 LastMousePosition(void);
-Vector2 MouseScrollDelta(void);
-Vector2 MouseMoveDelta(void);
-
 Image* CreateImage(unsigned int w, unsigned int h);
 void DestroyImage(Image *img);
 void ImageSet(Image *img, int x, int y, Color col);

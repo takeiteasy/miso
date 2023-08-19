@@ -21,18 +21,7 @@ static struct {
     sapp_desc desc;
     void (*init_cb)(void);
     void (*frame_cb)(void);
-    void (*event_cb)(const sapp_event*);
     void (*cleanup_cb)(void);
-    
-    struct {
-        bool button_down[SAPP_MAX_KEYCODES];
-        bool button_clicked[SAPP_MAX_KEYCODES];
-        bool mouse_down[SAPP_MAX_MOUSEBUTTONS];
-        bool mouse_clicked[SAPP_MAX_MOUSEBUTTONS];
-        Vector2 mouse_pos, last_mouse_pos;
-        Vector2 mouse_scroll_delta, mouse_delta;
-    } input;
-    
     sg_pass_action pass_action;
     sg_pass pass;
     sg_pipeline framebuffer_pip, offscreen_pip;
@@ -43,100 +32,6 @@ static struct {
         .colors[0] = { .action=SG_ACTION_CLEAR, .value={0.f, 0.f, 0.f, 1.f} }
     }
 };
-
-int WindowWidth(void) {
-    return state.running ? sapp_width() : -1;
-}
-
-int WindowHeight(void) {
-    return state.running ? sapp_height() : -1;
-}
-
-int IsWindowFullscreen(void) {
-    return state.running ? sapp_is_fullscreen() : state.desc.fullscreen;
-}
-
-void ToggleFullscreen(void) {
-    if (!state.running)
-        state.desc.fullscreen = !state.desc.fullscreen;
-    else
-        sapp_toggle_fullscreen();
-}
-
-int IsCursorVisible(void) {
-    return state.running ? sapp_mouse_shown() : state.mouseHidden;
-}
-
-void ToggleCursorVisible(void) {
-    if (state.running)
-        sapp_show_mouse(!state.mouseHidden);
-    state.mouseHidden = !state.mouseHidden;
-}
-
-int IsCursorLocked(void) {
-    return state.running? sapp_mouse_locked() : state.mouseLocked;
-}
-
-void ToggleCursorLock(void) {
-    if (state.running)
-        sapp_lock_mouse(!state.mouseLocked);
-    state.mouseLocked = !state.mouseLocked;
-}
-
-void SetClearColor(Color color) {
-    state.pass_action.colors[0].value.r = (float)color.r / 255.f;
-    state.pass_action.colors[0].value.g = (float)color.g / 255.f;
-    state.pass_action.colors[0].value.b = (float)color.b / 255.f;
-    state.pass_action.colors[0].value.a = (float)color.a / 255.f;
-}
-
-bool IsKeyDown(sapp_keycode key) {
-    return state.input.button_down[key];
-}
-
-bool IsKeyUp(sapp_keycode key) {
-    return !state.input.button_down[key];
-}
-
-bool WasKeyPressed(sapp_keycode key) {
-    return state.input.button_clicked[key];
-}
-
-bool IsButtonDown(sapp_mousebutton button) {
-    return state.input.mouse_down[button];
-}
-
-bool IsButtonUp(sapp_mousebutton button) {
-    return !state.input.mouse_down[button];
-}
-
-bool WasButtonPressed(sapp_mousebutton button) {
-    return state.input.mouse_clicked[button];
-}
-
-bool WasMouseScrolled(void) {
-    return state.input.mouse_scroll_delta.x != 0.f && state.input.mouse_scroll_delta.y != 0;
-}
-
-bool WasMouseMoved(void) {
-    return state.input.mouse_delta.x != 0.f && state.input.mouse_delta.y != 0;;
-}
-
-Vector2 MousePosition(void) {
-    return state.input.mouse_pos;
-}
-
-Vector2 LastMousePosition(void) {
-    return state.input.last_mouse_pos;
-}
-
-Vector2 MouseScrollDelta(void) {
-    return state.input.mouse_scroll_delta;
-}
-
-Vector2 MouseMoveDelta(void) {
-    return state.input.mouse_delta;
-}
 
 static char* LoadFile(const char *path, size_t *length) {
     char *result = NULL;
@@ -1345,46 +1240,6 @@ static void FrameCallback(void) {
     sg_end_pass();
     
     sg_commit();
-    
-    state.input.mouse_delta = state.input.mouse_scroll_delta = (Vector2){0};
-    for (int i = 0; i < SAPP_MAX_KEYCODES; i++)
-        if (state.input.button_clicked[i])
-            state.input.button_clicked[i] = false;
-    for (int i = 0; i < SAPP_MAX_MOUSEBUTTONS; i++)
-        if (state.input.mouse_clicked[i])
-            state.input.mouse_clicked[i] = false;
-}
-
-static void EventCallback(const sapp_event *e) {
-    if (state.event_cb)
-        state.event_cb(e);
-    
-    switch (e->type) {
-        case SAPP_EVENTTYPE_KEY_DOWN:
-            state.input.button_down[e->key_code] = true;
-            break;
-        case SAPP_EVENTTYPE_KEY_UP:
-            state.input.button_down[e->key_code] = false;
-            state.input.button_clicked[e->key_code] = true;
-            break;
-        case SAPP_EVENTTYPE_MOUSE_DOWN:
-            state.input.mouse_down[e->mouse_button] = true;
-            break;
-        case SAPP_EVENTTYPE_MOUSE_UP:
-            state.input.mouse_down[e->mouse_button] = false;
-            state.input.mouse_clicked[e->mouse_button] = true;
-            break;
-        case SAPP_EVENTTYPE_MOUSE_MOVE:
-            state.input.last_mouse_pos = state.input.mouse_pos;
-            state.input.mouse_pos = (Vector2){e->mouse_x, e->mouse_y};
-            state.input.mouse_delta = (Vector2){e->mouse_dx, e->mouse_dy};
-            break;
-        case SAPP_EVENTTYPE_MOUSE_SCROLL:
-            state.input.mouse_scroll_delta = (Vector2){e->scroll_x, e->scroll_y};
-            break;
-        default:
-            break;
-    }
 }
 
 static void CleanupCallback(void) {
@@ -1398,11 +1253,10 @@ int OrderUp(const sapp_desc *desc) {
     memcpy(&state.desc, desc, sizeof(sapp_desc));
     state.init_cb = desc->init_cb;
     state.frame_cb = desc->frame_cb;
-    state.event_cb = desc->event_cb;
     state.cleanup_cb = desc->cleanup_cb;
     state.desc.init_cb = InitCallback;
     state.desc.frame_cb = FrameCallback;
-    state.desc.event_cb = EventCallback;
+    state.desc.event_cb = desc->event_cb;
     state.desc.cleanup_cb = CleanupCallback;
     sapp_run(&state.desc);
     return EXIT_SUCCESS;
