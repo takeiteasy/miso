@@ -11,3 +11,4 @@ build/
 *.metallib
 examples/basic
 examples/perlin
+assets/*.h
