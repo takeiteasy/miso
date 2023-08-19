@@ -7,6 +7,9 @@
 
 #ifndef miso_h
 #define miso_h
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 #if defined(_MSC_VER) && _MSC_VER < 1800
 #include <windef.h>
@@ -29,6 +32,7 @@ typedef enum bool { false = 0, true = !false } bool;
 #include <stdarg.h>
 #include <errno.h>
 #include <setjmp.h>
+#include <assert.h>
 
 #include "sokol_app.h"
 #include "sokol_gfx.h"
@@ -51,25 +55,6 @@ typedef enum bool { false = 0, true = !false } bool;
 #define MISO_LINUX
 #else
 #error "Unsupported operating system"
-#endif
-
-#if defined(MISO_POSIX)
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <pwd.h>
-#define PATH_SEPERATOR "/"
-#if defined(MISO_MAC)
-#define MAX_PATH 255
-#else
-#define MAX_PATH 4096
-#endif
-#else // Windows
-#include <io.h>
-#define F_OK    0
-#define access _access
-#define PATH_SEPERATOR "\\"
-#define MAX_PATH 256
 #endif
 
 typedef struct {
@@ -112,6 +97,13 @@ typedef struct {
     Vector2 size;
 } TextureBatch;
 
+typedef struct {
+    TextureBatch *batch;
+    int *grid;
+    Vector2 tileSize;
+    int w, h;
+} Chunk;
+
 int OrderUp(const sapp_desc *desc);
 
 int WindowWidth(void);
@@ -137,12 +129,6 @@ Vector2 LastMousePosition(void);
 Vector2 MouseScrollDelta(void);
 Vector2 MouseMoveDelta(void);
 
-bool DoesFileExist(const char *path);
-bool DoesDirExist(const char *path);
-char* FormatString(const char *fmt, ...);
-char* LoadFile(const char *path, size_t *length);
-const char* JoinPath(const char *a, const char *b);
-
 Image* CreateImage(unsigned int w, unsigned int h);
 void DestroyImage(Image *img);
 void ImageSet(Image *img, int x, int y, Color col);
@@ -163,7 +149,15 @@ void TextureBatchDraw(TextureBatch *batch, Vector2 position, Vector2 size, Vecto
 void FlushTextureBatch(TextureBatch *batch);
 void DestroyTextureBatch(TextureBatch *batch);
 
+Chunk* CreateMap(Texture *texture, int w, int h, int tw, int th);
+int ChunkAt(Chunk *chunk, int x, int y);
+void DrawChunk(Chunk *chunk, Vector2 cameraPosition, Vector2 viewportSize);
+void DestroyChunk(Chunk *chunk);
+
 float Perlin(float x, float y, float z);
 unsigned char* PerlinFBM(int w, int h, float xoff, float yoff, float z, float scale, float lacunarity, float gain, int octaves);
 
+#if defined(__cplusplus)
+}
+#endif
 #endif /* miso_h */
