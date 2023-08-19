@@ -14,6 +14,7 @@ static struct {
     bool initialized, inProgress;
     sg_pass_action pass_action;
     sg_pipeline offscreen_pip;
+    Vector2 size;
 #if !defined(MISO_DISABLE_FRAMEBUFFER)
     sg_pass pass;
     sg_pipeline framebuffer_pip;
@@ -1700,11 +1701,11 @@ void ChunkSet(Chunk *chunk, int x, int y, int value) {
     chunk->grid[y * chunk->w + x] = value;
 }
 
-void DrawChunk(Chunk *chunk, Vector2 cameraPosition, Vector2 viewportSize) {
+void DrawChunk(Chunk *chunk, Vector2 cameraPosition) {
     Vector2 halfTileSize = {chunk->tileSize.x / 2.f, chunk->tileSize.y / 2.f};
     Vector2 offset = {
-        .x = halfTileSize.x + (-cameraPosition.x + viewportSize.x / 2),
-        .y = halfTileSize.y + (-cameraPosition.y + viewportSize.y / 2)
+        .x = halfTileSize.x + (-cameraPosition.x + state.size.x / 2),
+        .y = halfTileSize.y + (-cameraPosition.y + state.size.y / 2)
     };
     for (int x = 0; x < chunk->w; x++)
         for (int y = 0; y < chunk->h; y++) {
@@ -1712,7 +1713,7 @@ void DrawChunk(Chunk *chunk, Vector2 cameraPosition, Vector2 viewportSize) {
                 offset.x + ((float)x * chunk->tileSize.x) + (y % 2 ? halfTileSize.x : 0),
                 offset.y + ((float)y * chunk->tileSize.y) - (y * halfTileSize.y)
             };
-            TextureBatchDraw(chunk->batch, (Vector2){p.x - halfTileSize.x, p.y - halfTileSize.y}, chunk->tileSize, (Vector2){1.f, 1.f}, viewportSize, 0.f, (Rectangle){ChunkAt(chunk, x, y) * chunk->tileSize.x, 0, chunk->tileSize.x, chunk->tileSize.y});
+            TextureBatchDraw(chunk->batch, (Vector2){p.x - halfTileSize.x, p.y - halfTileSize.y}, chunk->tileSize, (Vector2){1.f, 1.f}, state.size, 0.f, (Rectangle){ChunkAt(chunk, x, y) * chunk->tileSize.x, 0, chunk->tileSize.x, chunk->tileSize.y});
         }
     FlushTextureBatch(chunk->batch);
 }
@@ -2417,15 +2418,17 @@ static inline const sg_shader_desc* framebuffer_program_shader_desc(sg_backend b
 #endif
 #endif
 
-void OrderMiso(void) {
+void OrderMiso(unsigned int width, unsigned int height) {
     assert(!state.initialized);
     state.initialized = true;
     
 #if !defined(MISO_DISABLE_FRAMEBUFFER)
+    state.size = (Vector2){width, height};
+    
     sg_image_desc img_desc = {
         .render_target = true,
-        .width = 640,
-        .height = 480,
+        .width = width,
+        .height = height,
         .pixel_format = SG_PIXELFORMAT_RGBA8,
         .min_filter = SG_FILTER_NEAREST,
         .mag_filter = SG_FILTER_NEAREST,
@@ -2519,7 +2522,7 @@ void OrderUp(void) {
 #if !defined(MISO_DISABLE_FRAMEBUFFER)
     sg_begin_pass(state.pass, &state.pass_action);
 #else
-    sg_begin_default_pass(&state.pass_action, 640, 480);
+    sg_begin_default_pass(&state.pass_action, state.size.x, state.size.y);
 #endif
     sg_apply_pipeline(state.offscreen_pip);
 }
@@ -2529,7 +2532,7 @@ void FinishMiso(void) {
     state.inProgress = false;
     sg_end_pass();
 #if !defined(MISO_DISABLE_FRAMEBUFFER)
-    sg_begin_default_pass(&state.pass_action, 640, 480);
+    sg_begin_default_pass(&state.pass_action, state.size.x, state.size.y);
     sg_apply_pipeline(state.framebuffer_pip);
     sg_apply_bindings(&state.bind);
     sg_draw(0, 6, 1);

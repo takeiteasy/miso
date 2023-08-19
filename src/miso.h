@@ -107,7 +107,7 @@ typedef struct {
     int w, h;
 } Chunk;
 
-EXPORT void OrderMiso(void);
+EXPORT void OrderMiso(unsigned int width, unsigned int height);
 EXPORT void OrderUp(void);
 EXPORT void FinishMiso(void);
 EXPORT void CleanUpMiso(void);
@@ -135,7 +135,7 @@ EXPORT void DestroyTextureBatch(TextureBatch *batch);
 EXPORT Chunk* CreateMap(Texture *texture, int w, int h, int tw, int th);
 EXPORT int ChunkAt(Chunk *chunk, int x, int y);
 EXPORT void ChunkSet(Chunk *chunk, int x, int y, int value);
-EXPORT void DrawChunk(Chunk *chunk, Vector2 cameraPosition, Vector2 viewportSize);
+EXPORT void DrawChunk(Chunk *chunk, Vector2 cameraPosition);
 EXPORT void DestroyChunk(Chunk *chunk);
 
 #if defined(__cplusplus)

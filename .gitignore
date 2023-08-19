@@ -9,3 +9,5 @@ build/
 *.dia
 *.metal
 *.metallib
+examples/basic
+examples/perlin

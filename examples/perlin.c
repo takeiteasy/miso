@@ -164,7 +164,7 @@ static void init(void) {
     };
     sg_setup(&desc);
     
-    OrderMiso();
+    OrderMiso(sapp_width(), sapp_height());
     
     state.camera = (Vector2) {
         MAP_SIZE * TILE_WIDTH / 2.f,
@@ -183,7 +183,7 @@ static void init(void) {
 
 static void frame(void) {
     OrderUp();
-    DrawChunk(state.map, state.camera, (Vector2){sapp_width(), sapp_height()});
+    DrawChunk(state.map, state.camera);
     FinishMiso();
     sg_commit();
 }

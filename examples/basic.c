@@ -26,7 +26,7 @@ static void init(void) {
     };
     sg_setup(&desc);
     
-    OrderMiso();
+    OrderMiso(sapp_width(), sapp_height());
     
     state.camera = (Vector2){0.f, 0.f};
     state.texture = LoadTextureFromFile("assets/tiles.png");
@@ -35,7 +35,7 @@ static void init(void) {
 
 static void frame(void) {
     OrderUp();
-    DrawChunk(state.map, state.camera, (Vector2){sapp_width(), sapp_height()});
+    DrawChunk(state.map, state.camera);
     FinishMiso();
     sg_commit();
 }
