@@ -33,10 +33,7 @@ typedef enum bool { false = 0, true = !false } bool;
 #include <errno.h>
 #include <setjmp.h>
 #include <assert.h>
-
-#include "sokol_app.h"
 #include "sokol_gfx.h"
-#include "sokol_glue.h"
 
 #if defined(__EMSCRIPTEN__) || defined(EMSCRIPTEN)
 #include <emscripten.h>
@@ -55,6 +52,12 @@ typedef enum bool { false = 0, true = !false } bool;
 #define MISO_LINUX
 #else
 #error "Unsupported operating system"
+#endif
+
+#if defined(MISO_WINDOWS) && !defined(MISO_NO_EXPORT)
+#define EXPORT __declspec(dllexport)
+#else
+#define EXPORT
 #endif
 
 typedef struct {
@@ -104,33 +107,36 @@ typedef struct {
     int w, h;
 } Chunk;
 
-int OrderUp(sapp_desc *desc);
+EXPORT void OrderMiso(void);
+EXPORT void OrderUp(void);
+EXPORT void FinishMiso(void);
+EXPORT void CleanUpMiso(void);
 
-Image* CreateImage(unsigned int w, unsigned int h);
-void DestroyImage(Image *img);
-void ImageSet(Image *img, int x, int y, Color col);
-Color ImageGet(Image *img, int x, int y);
-Image* LoadImageFromFile(const char *path);
-Image* LoadImageFromMemory(const void *data, size_t length);
-bool SaveImage(Image *img, const char *path);
+EXPORT Image* CreateImage(unsigned int w, unsigned int h);
+EXPORT void DestroyImage(Image *img);
+EXPORT void ImageSet(Image *img, int x, int y, Color col);
+EXPORT Color ImageGet(Image *img, int x, int y);
+EXPORT Image* LoadImageFromFile(const char *path);
+EXPORT Image* LoadImageFromMemory(const void *data, size_t length);
+EXPORT bool SaveImage(Image *img, const char *path);
 
-Texture* LoadTextureFromImage(Image *img);
-Texture* LoadTextureFromFile(const char *path);
-Texture* CreateMutableTexture(int w, int h);
-void UpdateMutableTexture(Texture *texture, Image *img);
-void DrawTexture(Texture *texture, Vector2 position, Vector2 size, Vector2 scale, Vector2 viewportSize, float rotation, Rectangle clip);
-void DestroyTexture(Texture *texture);
+EXPORT Texture* LoadTextureFromImage(Image *img);
+EXPORT Texture* LoadTextureFromFile(const char *path);
+EXPORT Texture* CreateMutableTexture(int w, int h);
+EXPORT void UpdateMutableTexture(Texture *texture, Image *img);
+EXPORT void DrawTexture(Texture *texture, Vector2 position, Vector2 size, Vector2 scale, Vector2 viewportSize, float rotation, Rectangle clip);
+EXPORT void DestroyTexture(Texture *texture);
 
-TextureBatch* CreateTextureBatch(Texture *texture, int maxVertices);
-void TextureBatchDraw(TextureBatch *batch, Vector2 position, Vector2 size, Vector2 scale, Vector2 viewportSize, float rotation, Rectangle clip);
-void FlushTextureBatch(TextureBatch *batch);
-void DestroyTextureBatch(TextureBatch *batch);
+EXPORT TextureBatch* CreateTextureBatch(Texture *texture, int maxVertices);
+EXPORT void TextureBatchDraw(TextureBatch *batch, Vector2 position, Vector2 size, Vector2 scale, Vector2 viewportSize, float rotation, Rectangle clip);
+EXPORT void FlushTextureBatch(TextureBatch *batch);
+EXPORT void DestroyTextureBatch(TextureBatch *batch);
 
-Chunk* CreateMap(Texture *texture, int w, int h, int tw, int th);
-int ChunkAt(Chunk *chunk, int x, int y);
-void ChunkSet(Chunk *chunk, int x, int y, int value);
-void DrawChunk(Chunk *chunk, Vector2 cameraPosition, Vector2 viewportSize);
-void DestroyChunk(Chunk *chunk);
+EXPORT Chunk* CreateMap(Texture *texture, int w, int h, int tw, int th);
+EXPORT int ChunkAt(Chunk *chunk, int x, int y);
+EXPORT void ChunkSet(Chunk *chunk, int x, int y, int value);
+EXPORT void DrawChunk(Chunk *chunk, Vector2 cameraPosition, Vector2 viewportSize);
+EXPORT void DestroyChunk(Chunk *chunk);
 
 #if defined(__cplusplus)
 }

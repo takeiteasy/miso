@@ -10,6 +10,7 @@ Mini isometric game engine **WIP**
 - [X] Optional framebuffer (Define `MISO_DISABLE_FRAMEBUFFER` to disable)
 - [X] Easy to extend/build off
 - [ ] Implement zooming
+- [ ] Implement height
 - [ ] Add screen <-> world position functions
 - [ ] Finalize API + add namespace
 - [ ] Lua bindings
@@ -23,8 +24,8 @@ Nothing to see yet
 
 - [floooh/sokol](https://github.com/floooh/sokol) (zlib/libpng)
     - sokol_gfx.h
-    - sokol_app.h
-    - sokol_glue.h
+    - sokol_app.h (Examples only)
+    - sokol_glue.h (Examples only)
 
 ## LICENSE
 ```

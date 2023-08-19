@@ -1,31 +1,56 @@
 ifeq ($(OS),Windows_NT)
-	PROG_EXT=.exe
-	SOKOL_FLAGS=-O2 -DSOKOL_D3D11 -lkernel32 -luser32 -lshell32 -ldxgi -ld3d11 -lole32 -lgdi32
-	ARCH=win32
+	PRG_SUFFIX_FLAG=1
+	SOKOL_LDFLAGS := -DSOKOL_D3D11
+		SOKOL_CFLAGS := -lkernel32 -luser32 -lshell32 -ldxgi -ld3d11 -lole32 -lgdi32
 else
+	PRG_SUFFIX_FLAG=0
 	UNAME:=$(shell uname -s)
-	PROG_EXT=
 	ifeq ($(UNAME),Darwin)
-		SOKOL_FLAGS=-x objective-c -DSOKOL_METAL -fobjc-arc -framework Metal -framework Cocoa -framework MetalKit -framework Quartz -framework AudioToolbox
 		ARCH:=$(shell uname -m)
+		SOKOL_LDFLAGS := -framework Cocoa -framework Metal -framework MetalKit -framework Quartz
+		SOKOL_CFLAGS := -x objective-c -DSOKOL_METAL -fobjc-arc
 		ifeq ($(ARCH),arm64)
 			ARCH=osx_arm64
 		else
 			ARCH=osx
 		endif
 	else ifeq ($(UNAME),Linux)
-		SOKOL_FLAGS=-DSOKOL_GLCORE33 -pthread -lGL -ldl -lm -lX11 -lasound -lXi -lXcursor
 		ARCH=linux
+		SOKOL_LDFLAGS := -pthread -lGL -ldl -lm -lX11 -lXi -lXcursor
+		SOKOL_CFLAGS := -DSOKOL_GLCORE33
 	else
 		$(error OS not supported by this Makefile)
 	endif
 endif
 
-CFLAGS=
-LDFLAGS=
-INCLUDE=-I. -Isrc/ -Ideps/
-ARCH_PATH=./tools/$(ARCH)
+INCLUDES := -Isrc/ -Ideps/
+LDFLAGS := $(SOKOL_LDFLAGS)
+CFLAGS := $(INCLUDES) $(SOKOL_CFLAGS)
 
+SRCS := $(wildcard examples/*.c)
+PRGS := $(patsubst %.c,%,$(SRCS))
+PRG_SUFFIX=.exe
+BINS := $(patsubst %,%$(PRG_SUFFIX),$(PRGS))
+OBJS := $(patsubst %,%.o,$(PRGS))
+ifeq ($(PRG_SUFFIX_FLAG),0)
+	OUTS = $(PRGS)
+else
+	OUTS = $(BINS)
+endif
+
+default: $(BINS)
+
+.SECONDEXPANSION:
+OBJ = $(patsubst %$(PRG_SUFFIX),%.o,$@)
+ifeq ($(PRG_SUFFIX_FLAG),0)
+	BIN = $(patsubst %$(PRG_SUFFIX),%,$@)
+else
+	BIN = $@
+endif
+%$(PRG_SUFFIX): $(OBJS)
+	$(CC) $(INCLUDES) $(OBJ) $(CFLAGS) src/miso.c $(LDFLAGS) -o $(BIN)
+
+ARCH_PATH=./tools/$(ARCH)
 SHDC_PATH=$(ARCH_PATH)/sokol-shdc$(PROG_EXT)
 SHADERS=$(wildcard assets/*.glsl)
 SHADER_OUTS=$(patsubst %,%.h,$(SHADERS))
@@ -38,23 +63,16 @@ SHADER_OUT=$@
 
 shaders: $(SHADER_OUTS)
 
-library:
-	$(CC) $(SOKOL_FLAGS) -shared -fpic $(INCLUDE) src/miso.c -o build/libmiso_$(ARCH).dylib
-
-web:
-	emcc -DSOKOL_GLES3 $(INCLUDE) src/miso.c -sUSE_WEBGL2=1 -o build/miso.js
-
-test: library
-	$(CC) -Lbuild/ -lmiso_$(ARCH) $(INCLUDE) examples/basic.c -o build/test$(PROG_EXT)
-
-default: library
-
-all: shaders library web test clean
-
 clean:
-	rm assets/*.air
-	rm assets/*.dia
-	rm assets/*.metal
-	rm assets/*.metallib
+	rm $(OBJS) || true
+	rm assets/*.air || true
+	rm assets/*.dia || true
+	rm assets/*.metal || true
+	rm assets/*.metallib || true
 
-.PHONY: library shaders web test clean default all
+veryclean: clean
+	rm $(OUTS) || true
+
+all: shaders default clean
+
+.PHONY: default shaders clean veryclean all

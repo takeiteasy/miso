@@ -11,9 +11,7 @@
 #include "miso.h"
 
 static struct {
-    void (*init_cb)(void);
-    void (*frame_cb)(void);
-    void (*cleanup_cb)(void);
+    bool initialized, inProgress;
     sg_pass_action pass_action;
     sg_pipeline offscreen_pip;
 #if !defined(MISO_DISABLE_FRAMEBUFFER)
@@ -791,8 +789,8 @@ Texture* LoadTextureFromImage(Image *img) {
         .width = img->w,
         .height = img->h,
         .data.subimage[0][0] = {
-            .ptr= img->buf,
-            .size= img->w * img->h * sizeof(int)
+            .ptr = img->buf,
+            .size = img->w * img->h * sizeof(int)
         }
     };
     return NewTexture(&desc);
@@ -1658,10 +1656,11 @@ void TextureBatchDraw(TextureBatch *batch, Vector2 position, Vector2 size, Vecto
 }
 
 void FlushTextureBatch(TextureBatch *batch) {
-    sg_update_buffer(batch->bind.vertex_buffers[0], &(sg_range) {
+    sg_range range = {
         .ptr = batch->vertices,
         .size = batch->vertexCount * sizeof(Vertex)
-    });
+    };
+    sg_update_buffer(batch->bind.vertex_buffers[0], &range);
     sg_apply_bindings(&batch->bind);
     sg_draw(0, batch->vertexCount, 1);
     memset(batch->vertices, 0, batch->maxVertices * sizeof(Vertex));
@@ -2418,11 +2417,9 @@ static inline const sg_shader_desc* framebuffer_program_shader_desc(sg_backend b
 #endif
 #endif
 
-static void InitCallback(void) {
-    sg_desc desc = (sg_desc) {
-        .context = sapp_sgcontext()
-    };
-    sg_setup(&desc);
+void OrderMiso(void) {
+    assert(!state.initialized);
+    state.initialized = true;
     
 #if !defined(MISO_DISABLE_FRAMEBUFFER)
     sg_image_desc img_desc = {
@@ -2514,35 +2511,35 @@ static void InitCallback(void) {
         }
     };
     state.offscreen_pip = sg_make_pipeline(&offscreen_desc);
-    
-    if (state.init_cb)
-        state.init_cb();
 }
 
-static void FrameCallback(void) {
+void OrderUp(void) {
+    assert(!state.inProgress);
+    state.inProgress = true;
 #if !defined(MISO_DISABLE_FRAMEBUFFER)
     sg_begin_pass(state.pass, &state.pass_action);
 #else
-    sg_begin_default_pass(&state.pass_action, sapp_width(), sapp_height());
+    sg_begin_default_pass(&state.pass_action, 640, 480);
 #endif
     sg_apply_pipeline(state.offscreen_pip);
-    if (state.frame_cb)
-        state.frame_cb();
+}
+
+void FinishMiso(void) {
+    assert(state.inProgress);
+    state.inProgress = false;
     sg_end_pass();
-    
 #if !defined(MISO_DISABLE_FRAMEBUFFER)
-    sg_begin_default_pass(&state.pass_action, sapp_width(), sapp_height());
+    sg_begin_default_pass(&state.pass_action, 640, 480);
     sg_apply_pipeline(state.framebuffer_pip);
     sg_apply_bindings(&state.bind);
     sg_draw(0, 6, 1);
     sg_end_pass();
 #endif
-    sg_commit();
 }
 
-static void CleanupCallback(void) {
-    if (state.cleanup_cb)
-        state.cleanup_cb();
+void CleanUpMiso(void) {
+    assert(state.initialized);
+    state.initialized = false;
 #if !defined(MISO_DISABLE_FRAMEBUFFER)
     sg_destroy_pass(state.pass);
     sg_destroy_pipeline(state.framebuffer_pip);
@@ -2551,16 +2548,4 @@ static void CleanupCallback(void) {
     sg_destroy_image(state.depth);
 #endif
     sg_destroy_pipeline(state.offscreen_pip);
-    sg_shutdown();
-}
-
-int OrderUp(sapp_desc *desc) {
-    state.init_cb = desc->init_cb;
-    state.frame_cb = desc->frame_cb;
-    state.cleanup_cb = desc->cleanup_cb;
-    desc->init_cb = InitCallback;
-    desc->frame_cb = FrameCallback;
-    desc->cleanup_cb = CleanupCallback;
-    sapp_run(desc);
-    return EXIT_SUCCESS;
 }

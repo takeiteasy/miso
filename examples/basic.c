@@ -6,6 +6,9 @@
 //
 
 #include "miso.h"
+#define SOKOL_IMPL
+#include "sokol_app.h"
+#include "sokol_glue.h"
 
 static struct {
     Texture *texture;
@@ -18,22 +21,34 @@ static struct {
 #define TILE_HEIGHT 16.f
 
 static void init(void) {
+    sg_desc desc = {
+        .context = sapp_sgcontext()
+    };
+    sg_setup(&desc);
+    
+    OrderMiso();
+    
     state.camera = (Vector2){0.f, 0.f};
     state.texture = LoadTextureFromFile("assets/tiles.png");
     state.map = CreateMap(state.texture, MAP_SIZE, MAP_SIZE, TILE_WIDTH, TILE_HEIGHT);
 }
 
 static void frame(void) {
+    OrderUp();
     DrawChunk(state.map, state.camera, (Vector2){sapp_width(), sapp_height()});
+    FinishMiso();
+    sg_commit();
 }
 
 static void cleanup(void) {
     DestroyTexture(state.texture);
     DestroyChunk(state.map);
+    CleanUpMiso();
+    sg_shutdown();
 }
 
-int main(int argc, const char *argv[]) {
-    sapp_desc desc = {
+sapp_desc sokol_main(int argc, char* argv[]) {
+    return (sapp_desc) {
         .width = 640,
         .height = 480,
         .window_title = "miso -- basic.c",
@@ -41,5 +56,4 @@ int main(int argc, const char *argv[]) {
         .frame_cb = frame,
         .cleanup_cb = cleanup
     };
-    return OrderUp(&desc);
 }

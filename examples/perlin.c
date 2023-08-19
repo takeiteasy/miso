@@ -6,6 +6,9 @@
 //
 
 #include "miso.h"
+#define SOKOL_IMPL
+#include "sokol_app.h"
+#include "sokol_glue.h"
 
 static const float grad3[][3] = {
     { 1, 1, 0 }, { -1, 1, 0 }, { 1, -1, 0 }, { -1, -1, 0 },
@@ -156,6 +159,13 @@ static struct {
 #define TILE_HEIGHT 16.f
 
 static void init(void) {
+    sg_desc desc = {
+        .context = sapp_sgcontext()
+    };
+    sg_setup(&desc);
+    
+    OrderMiso();
+    
     state.camera = (Vector2) {
         MAP_SIZE * TILE_WIDTH / 2.f,
         MAP_SIZE * (TILE_HEIGHT / 2.f) / 2.f
@@ -172,7 +182,10 @@ static void init(void) {
 }
 
 static void frame(void) {
+    OrderUp();
     DrawChunk(state.map, state.camera, (Vector2){sapp_width(), sapp_height()});
+    FinishMiso();
+    sg_commit();
 }
 
 static void event(const sapp_event *e) {
@@ -201,10 +214,12 @@ static void event(const sapp_event *e) {
 static void cleanup(void) {
     DestroyTexture(state.texture);
     DestroyChunk(state.map);
+    CleanUpMiso();
+    sg_shutdown();
 }
 
-int main(int argc, const char *argv[]) {
-    sapp_desc desc = {
+sapp_desc sokol_main(int argc, char* argv[]) {
+    return (sapp_desc) {
         .width = 640,
         .height = 480,
         .window_title = "miso -- perlin.c",
@@ -213,5 +228,4 @@ int main(int argc, const char *argv[]) {
         .event_cb = event,
         .cleanup_cb = cleanup
     };
-    return OrderUp(&desc);
 }

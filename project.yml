@@ -30,10 +30,8 @@ targets:
           type: folder
         - path: src/
     dependencies:
-        - sdk: Cocoa.framework
         - sdk: Metal.framework
         - sdk: MetalKit.framework
-        - sdk: Quartz.framework
     settings:
         HEADER_SEARCH_PATHS: [$(PROJECT_DIR)/deps]
         OTHER_CFLAGS: ["-x objective-c", -DSOKOL_METAL, -fobjc-arc, -DDEBUG, -DMISO_LOAD_TEXTURE_SHADER, -DMISO_LOAD_FRAMEBUFFER_SHADER]
@@ -43,6 +41,9 @@ targets:
     sources:
       - path: examples/basic.c
     dependencies:
+      - sdk: Cocoa.framework
+      - sdk: Quartz.framework
       - target: miso
     settings:
         HEADER_SEARCH_PATHS: [$(PROJECT_DIR)/deps]
+        OTHER_CFLAGS: ["-x objective-c", -DSOKOL_METAL, -fobjc-arc]
