@@ -104,7 +104,7 @@ typedef struct {
     int w, h;
 } Chunk;
 
-int OrderUp(const sapp_desc *desc);
+int OrderUp(sapp_desc *desc);
 
 Image* CreateImage(unsigned int w, unsigned int h);
 void DestroyImage(Image *img);
@@ -128,11 +128,9 @@ void DestroyTextureBatch(TextureBatch *batch);
 
 Chunk* CreateMap(Texture *texture, int w, int h, int tw, int th);
 int ChunkAt(Chunk *chunk, int x, int y);
+void ChunkSet(Chunk *chunk, int x, int y, int value);
 void DrawChunk(Chunk *chunk, Vector2 cameraPosition, Vector2 viewportSize);
 void DestroyChunk(Chunk *chunk);
-
-float Perlin(float x, float y, float z);
-unsigned char* PerlinFBM(int w, int h, float xoff, float yoff, float z, float scale, float lacunarity, float gain, int octaves);
 
 #if defined(__cplusplus)
 }

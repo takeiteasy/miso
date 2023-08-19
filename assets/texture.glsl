@@ -1,4 +1,4 @@
-@vs sprite_vs
+@vs texture_vs
 in vec2 position;
 in vec2 texcoord;
 in vec4 color;
@@ -13,17 +13,16 @@ void main() {
 }
 @end
 
-@fs sprite_fs
-uniform sampler2D sprite;
+@fs texture_fs
+uniform sampler2D tex;
 in vec2 uv;
 in vec4 col;
 
 out vec4 fragColor;
 
 void main() {
-    vec4 tex = texture(sprite, uv);
-    fragColor = tex.a > 0 ? col == vec4(0.f, 0.f, 0.f, 1.f) ? tex : col : vec4(0.f);
+    fragColor = texture(tex, uv) * col;
 }
 @end
 
-@program sprite_program sprite_vs sprite_fs
+@program texture_program texture_vs texture_fs

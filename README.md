@@ -2,13 +2,17 @@
 
 Mini isometric game engine **WIP**
 
-## Features 
+## Features/TODO 
 
 - [X] Cross platform -- Windows, Linux, Mac + Web
 - [X] Simple texture batching
 - [X] Built-in .png loading+saving (Credit to [erkkah/tigr](https://github.com/erkkah/tigr/))
-- [X] Built-in perlin+fbm functions
-- [ ] Lua bindings 
+- [X] Optional framebuffer (Define `MISO_DISABLE_FRAMEBUFFER` to disable)
+- [X] Easy to extend/build off
+- [ ] Implement zooming
+- [ ] Add screen <-> world position functions
+- [ ] Finalize API + add namespace
+- [ ] Lua bindings
 - [ ] Documentation
 
 ## Gallery
