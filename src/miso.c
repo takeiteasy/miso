@@ -183,15 +183,9 @@ static Texture* NewTexture(sg_image_desc *desc) {
 }
 
 Texture* LoadTextureFromImage(Image *img) {
-    sg_image_desc desc = {
-        .width = img->w,
-        .height = img->h,
-        .data.subimage[0][0] = {
-            .ptr = img->buf,
-            .size = img->w * img->h * sizeof(int)
-        }
-    };
-    return NewTexture(&desc);
+    Texture *result = CreateEmptyTexture(img->w, img->h);
+    UpdateTexture(result, img);
+    return result;
 }
 
 Texture* LoadTextureFromFile(const char *path) {
@@ -201,7 +195,7 @@ Texture* LoadTextureFromFile(const char *path) {
     return result;
 }
 
-Texture* CreateMutableTexture(int w, int h) {
+Texture* CreateEmptyTexture(int w, int h) {
     sg_image_desc desc = {
         .width = w,
         .height = h,
@@ -210,10 +204,10 @@ Texture* CreateMutableTexture(int w, int h) {
     return NewTexture(&desc);
 }
 
-void UpdateMutableTexture(Texture *texture, Image *img) {
+void UpdateTexture(Texture *texture, Image *img) {
     if (texture->w != img->w || texture->h != img->h) {
         DestroyTexture(texture);
-        texture = CreateMutableTexture(img->w, img->h);
+        texture = CreateEmptyTexture(img->w, img->h);
     }
     sg_image_data data = {
         .subimage[0][0] = (sg_range) {

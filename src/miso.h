@@ -124,8 +124,8 @@ EXPORT Image* LoadImageFromMemory(const void *data, size_t length);
 
 EXPORT Texture* LoadTextureFromImage(Image *img);
 EXPORT Texture* LoadTextureFromFile(const char *path);
-EXPORT Texture* CreateMutableTexture(int w, int h);
-EXPORT void UpdateMutableTexture(Texture *texture, Image *img);
+EXPORT Texture* CreateEmptyTexture(int w, int h);
+EXPORT void UpdateTexture(Texture *texture, Image *img);
 EXPORT void DrawTexture(Texture *texture, Vector2 position, Vector2 size, Vector2 scale, Vector2 viewportSize, float rotation, Rectangle clip);
 EXPORT void DestroyTexture(Texture *texture);
 
