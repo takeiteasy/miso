@@ -2,17 +2,14 @@
 
 Mini isometric game engine **WIP**
 
-## Features/TODO 
+## TODO 
 
-- [X] Cross platform -- Windows, Linux, Mac + Web
-- [X] Simple texture batching
-- [X] Built-in .png loading+saving (Credit to [erkkah/tigr](https://github.com/erkkah/tigr/))
-- [X] Optional framebuffer (Define `MISO_DISABLE_FRAMEBUFFER` to disable)
-- [X] Easy to extend/build off
 - [ ] Implement zooming
 - [ ] Implement height
 - [ ] Add screen <-> world position functions
 - [ ] Finalize API + add namespace
+- [ ] Optional .tmx loader
+- [ ] Optional custom map loader
 - [ ] Lua bindings
 - [ ] Documentation
 
@@ -26,7 +23,11 @@ Nothing to see yet
     - sokol_gfx.h
     - sokol_app.h (Examples only)
     - sokol_glue.h (Examples only)
-
+- [nothings/stb](https://github.com/nothings/stb/tree/master) (MIT/Public Domain)
+    - stb_image.h
+- [phoboslab/qoi](https://github.com/phoboslab/qoi) (MIT)
+    - qoi.h
+    
 ## LICENSE
 ```
 The MIT License (MIT)

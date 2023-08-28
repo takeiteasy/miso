@@ -34,6 +34,8 @@ typedef enum bool { false = 0, true = !false } bool;
 #include <setjmp.h>
 #include <assert.h>
 #include "sokol_gfx.h"
+#include "stb_image.h"
+#include "qoi.h"
 
 #if defined(__EMSCRIPTEN__) || defined(EMSCRIPTEN)
 #include <emscripten.h>
@@ -74,7 +76,7 @@ typedef struct {
 
 typedef union {
     struct {
-        unsigned char a, b, g, r;
+        unsigned char r, g, b, a;
     };
     int rgba;
 } Color;
@@ -119,7 +121,6 @@ EXPORT void ImageSet(Image *img, int x, int y, Color col);
 EXPORT Color ImageGet(Image *img, int x, int y);
 EXPORT Image* LoadImageFromFile(const char *path);
 EXPORT Image* LoadImageFromMemory(const void *data, size_t length);
-EXPORT bool SaveImage(Image *img, const char *path);
 
 EXPORT Texture* LoadTextureFromImage(Image *img);
 EXPORT Texture* LoadTextureFromFile(const char *path);

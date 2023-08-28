@@ -1,7 +1,7 @@
 ifeq ($(OS),Windows_NT)
 	PRG_SUFFIX_FLAG=1
 	SOKOL_LDFLAGS := -DSOKOL_D3D11
-		SOKOL_CFLAGS := -lkernel32 -luser32 -lshell32 -ldxgi -ld3d11 -lole32 -lgdi32
+	SOKOL_CFLAGS := -lkernel32 -luser32 -lshell32 -ldxgi -ld3d11 -lole32 -lgdi32
 else
 	PRG_SUFFIX_FLAG=0
 	UNAME:=$(shell uname -s)
@@ -23,9 +23,8 @@ else
 	endif
 endif
 
-INCLUDES := -Isrc/ -Ideps/
 LDFLAGS := $(SOKOL_LDFLAGS)
-CFLAGS := $(INCLUDES) $(SOKOL_CFLAGS)
+CFLAGS := -Isrc/ -Ideps/ $(SOKOL_CFLAGS)
 
 SRCS := $(wildcard examples/*.c)
 PRGS := $(patsubst %.c,%,$(SRCS))
@@ -48,7 +47,7 @@ else
 	BIN = $@
 endif
 %$(PRG_SUFFIX): $(OBJS)
-	$(CC) $(INCLUDES) $(OBJ) $(CFLAGS) src/miso.c $(LDFLAGS) -o $(BIN)
+	$(CC) $(OBJ) $(CFLAGS) src/miso.c $(LDFLAGS) -o $(BIN)
 
 ARCH_PATH=./tools/$(ARCH)
 SHDC_PATH=$(ARCH_PATH)/sokol-shdc$(PROG_EXT)
