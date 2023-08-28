@@ -21,12 +21,19 @@ Nothing to see yet
 
 - [floooh/sokol](https://github.com/floooh/sokol) (zlib/libpng)
     - sokol_gfx.h
-    - sokol_app.h (Examples only)
-    - sokol_glue.h (Examples only)
+    - sokol_app.h
+    - sokol_glue.h
+    - sokol_nuklear.h
 - [nothings/stb](https://github.com/nothings/stb/tree/master) (MIT/Public Domain)
     - stb_image.h
 - [phoboslab/qoi](https://github.com/phoboslab/qoi) (MIT)
     - qoi.h
+- [tsoding/jim](https://github.com/tsoding/jim) (MIT)
+    - jim.h
+- [esr/microjson](https://gitlab.com/esr/microjson/) (BSD-2-clause)
+    - mjson.h
+- [AndrewBelt/osdialog](https://github.com/AndrewBelt/osdialog) (CC0)
+    - osdialog.h
     
 ## LICENSE
 ```
