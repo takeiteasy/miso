@@ -64,80 +64,80 @@ typedef enum bool { false = 0, true = !false } bool;
 
 typedef struct {
     float x, y;
-} Vector2;
+} MisoVec2;
 
 typedef struct {
     float x, y, z, w;
-} Vector4;
+} MisoVec4;
 
 typedef struct {
     float x, y, w, h;
-} Rectangle;
+} MisoRect;
 
 typedef union {
     struct {
         unsigned char r, g, b, a;
     };
     int rgba;
-} Color;
+} MisoColor;
 
 typedef struct {
     int *buf, w, h;
-} Image;
+} MisoImage;
 
 typedef struct {
-    Vector2 position, texcoord;
-    Vector4 color;
-} Vertex;
+    MisoVec2 position, texcoord;
+    MisoVec4 color;
+} MisoVertex;
 
 typedef struct {
     sg_image sg;
     int w, h;
-} Texture;
+} MisoTexture;
 
 typedef struct {
-    Vertex *vertices;
+    MisoVertex *vertices;
     int maxVertices, vertexCount;
     sg_bindings bind;
-    Vector2 size;
-} TextureBatch;
+    MisoVec2 size;
+} MisoTextureBatch;
 
 typedef struct {
-    TextureBatch *batch;
+    MisoTextureBatch *batch;
     int *grid;
     float tileW, tileH;
     int w, h;
-} Chunk;
+} MisoChunk;
 
 typedef struct {
-    Vector2 position;
+    MisoVec2 position;
     float zoom;
-} Camera;
+} MisoCamera;
 
-EXPORT Chunk* CreateChunk(Texture *texture, int w, int h, int tw, int th);
-EXPORT int ChunkAt(Chunk *chunk, int x, int y);
-EXPORT void ChunkSet(Chunk *chunk, int x, int y, int value);
-EXPORT void DrawChunk(Chunk *chunk, Camera *camera);
-EXPORT void DestroyChunk(Chunk *chunk);
+EXPORT MisoChunk* MisoEmptyChunk(MisoTexture *texture, int w, int h, int tw, int th);
+EXPORT int MisoChunkAt(MisoChunk *chunk, int x, int y);
+EXPORT void MisoChunkSet(MisoChunk *chunk, int x, int y, int value);
+EXPORT void MisoDrawChunk(MisoChunk *chunk, MisoCamera *camera);
+EXPORT void MisoDestroyChunk(MisoChunk *chunk);
 
-EXPORT Image* CreateImage(unsigned int w, unsigned int h);
-EXPORT void DestroyImage(Image *img);
-EXPORT void ImageSet(Image *img, int x, int y, Color col);
-EXPORT Color ImageGet(Image *img, int x, int y);
-EXPORT Image* LoadImageFromFile(const char *path);
-EXPORT Image* LoadImageFromMemory(const void *data, size_t length);
+EXPORT MisoImage* MisoEmptyImage(unsigned int w, unsigned int h);
+EXPORT void MisoDestroyImage(MisoImage *img);
+EXPORT void MisoImagePSet(MisoImage *img, int x, int y, MisoColor col);
+EXPORT MisoColor MisoImagePGet(MisoImage *img, int x, int y);
+EXPORT MisoImage* MisoLoadImageFromFile(const char *path);
+EXPORT MisoImage* MisoLoadImageFromMemory(const void *data, size_t length);
 
-EXPORT Texture* LoadTextureFromImage(Image *img);
-EXPORT Texture* LoadTextureFromFile(const char *path);
-EXPORT Texture* CreateEmptyTexture(int w, int h);
-EXPORT void UpdateTexture(Texture *texture, Image *img);
-EXPORT void DrawTexture(Texture *texture, Vector2 position, Vector2 size, Vector2 scale, Vector2 viewportSize, float rotation, Rectangle clip);
-EXPORT void DestroyTexture(Texture *texture);
+EXPORT MisoTexture* MisoLoadTextureFromImage(MisoImage *img);
+EXPORT MisoTexture* MisoLoadTextureFromFile(const char *path);
+EXPORT MisoTexture* MisoEmptyTexture(int w, int h);
+EXPORT void MisoUpdateTexture(MisoTexture *texture, MisoImage *img);
+EXPORT void MisoDrawTexture(MisoTexture *texture, MisoVec2 position, MisoVec2 size, MisoVec2 scale, MisoVec2 viewportSize, float rotation, MisoRect clip);
+EXPORT void MisoDestroyTexture(MisoTexture *texture);
 
-EXPORT TextureBatch* CreateTextureBatch(Texture *texture, int maxVertices);
-EXPORT void TextureBatchDraw(TextureBatch *batch, Vector2 position, Vector2 size, Vector2 scale, Vector2 viewportSize, float rotation, Rectangle clip);
-EXPORT void FlushTextureBatch(TextureBatch *batch);
-EXPORT void DestroyTextureBatch(TextureBatch *batch);
+EXPORT MisoTextureBatch* MisoCreateTextureBatch(MisoTexture *texture, int maxVertices);
+EXPORT void MisoTextureBatchDraw(MisoTextureBatch *batch, MisoVec2 position, MisoVec2 size, MisoVec2 scale, MisoVec2 viewportSize, float rotation, MisoRect clip);
+EXPORT void MisoFlushTextureBatch(MisoTextureBatch *batch);
+EXPORT void MisoDestroyTextureBatch(MisoTextureBatch *batch);
 
 EXPORT void OrderMiso(void);
 EXPORT void OrderUp(unsigned int width, unsigned int height);

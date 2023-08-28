@@ -4,12 +4,11 @@ Mini isometric game engine **WIP**
 
 ## TODO 
 
-- [ ] Implement zooming
 - [ ] Implement height
 - [ ] Add screen <-> world position functions
-- [ ] Finalize API + add namespace
-- [ ] Optional .tmx loader
-- [ ] Optional custom map loader
+- [ ] Finalize API + ~~add namespace~~
+- [ ] Example: Integrate [.tmx loader](https://github.com/baylej/tmx)
+- [ ] Custom map loader (Optional) [in-progress]
 - [ ] Lua bindings
 - [ ] Documentation
 

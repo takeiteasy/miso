@@ -16,7 +16,7 @@ static struct {
     bool initialized, inProgress;
     sg_pass_action pass_action;
     sg_pipeline offscreen_pip;
-    Vector2 size;
+    MisoVec2 size;
 #if !defined(MISO_DISABLE_FRAMEBUFFER)
     sg_pass pass;
     sg_pipeline framebuffer_pip;
@@ -29,9 +29,9 @@ static struct {
     }
 };
 
-Chunk* CreateChunk(Texture *texture, int w, int h, int tileW, int tileH) {
-    Chunk *result = malloc(sizeof(Chunk));
-    result->batch = CreateTextureBatch(texture, w * h);
+MisoChunk* MisoEmptyChunk(MisoTexture *texture, int w, int h, int tileW, int tileH) {
+    MisoChunk *result = malloc(sizeof(MisoChunk));
+    result->batch = MisoCreateTextureBatch(texture, w * h);
     size_t sz = w * h * sizeof(int);
     result->grid = malloc(sz);
     memset(result->grid, 0, sz);
@@ -42,73 +42,53 @@ Chunk* CreateChunk(Texture *texture, int w, int h, int tileW, int tileH) {
     return result;
 }
 
-int ChunkAt(Chunk *chunk, int x, int y) {
+int MisoChunkAt(MisoChunk *chunk, int x, int y) {
     assert(x >= 0 && x < chunk->w && y >= 0 && y < chunk->h);
     return chunk->grid[y * chunk->w + x];
 }
 
-void ChunkSet(Chunk *chunk, int x, int y, int value) {
+void MisoChunkSet(MisoChunk *chunk, int x, int y, int value) {
     assert(x >= 0 && x < chunk->w && y >= 0 && y < chunk->h);
     assert(value < (chunk->w / chunk->tileW));
     chunk->grid[y * chunk->w + x] = value;
 }
 
-void DrawChunk(Chunk *chunk, Camera *camera) {
-    Vector2 halfTileSize = {chunk->tileW / 2.f, chunk->tileH / 2.f};
-    Vector2 offset = {
+void MisoDrawChunk(MisoChunk *chunk, MisoCamera *camera) {
+    MisoVec2 halfTileSize = {chunk->tileW / 2.f, chunk->tileH / 2.f};
+    MisoVec2 offset = {
         .x = halfTileSize.x + (-camera->position.x + state.size.x / 2),
         .y = halfTileSize.y + (-camera->position.y + state.size.y / 2)
     };
     for (int x = 0; x < chunk->w; x++)
         for (int y = 0; y < chunk->h; y++) {
-            Vector2 p = (Vector2) {
+            MisoVec2 p = (MisoVec2) {
                 offset.x + ((float)x * chunk->tileW) + (y % 2 ? halfTileSize.x : 0),
                 offset.y + ((float)y * chunk->tileH) - (y * halfTileSize.y)
             };
-            TextureBatchDraw(chunk->batch, (Vector2){p.x - halfTileSize.x, p.y - halfTileSize.y}, (Vector2){chunk->tileW, chunk->tileH}, (Vector2){camera->zoom, camera->zoom}, state.size, 0.f, (Rectangle){ChunkAt(chunk, x, y) * chunk->tileW, 0, chunk->tileW, chunk->tileH});
+            MisoTextureBatchDraw(chunk->batch, (MisoVec2){p.x - halfTileSize.x, p.y - halfTileSize.y}, (MisoVec2){chunk->tileW, chunk->tileH}, (MisoVec2){camera->zoom, camera->zoom}, state.size, 0.f, (MisoRect){MisoChunkAt(chunk, x, y) * chunk->tileW, 0, chunk->tileW, chunk->tileH});
         }
-    FlushTextureBatch(chunk->batch);
+    MisoFlushTextureBatch(chunk->batch);
 }
 
-void DestroyChunk(Chunk *chunk) {
+void MisoDestroyChunk(MisoChunk *chunk) {
     if (chunk) {
         if (chunk->batch)
-            DestroyTextureBatch(chunk->batch);
+            MisoDestroyTextureBatch(chunk->batch);
         if (chunk->grid)
             free(chunk->grid);
         free(chunk);
     }
 }
 
-static char* LoadFile(const char *path, size_t *length) {
-    char *result = NULL;
-    size_t sz = -1;
-    FILE *fh = fopen(path, "rb");
-    if (!fh)
-        goto BAIL;
-    fseek(fh, 0, SEEK_END);
-    sz = ftell(fh);
-    fseek(fh, 0, SEEK_SET);
-
-    result = malloc(sz * sizeof(char));
-    fread(result, sz, 1, fh);
-    fclose(fh);
-    
-BAIL:
-    if (length)
-        *length = sz;
-    return result;
-}
-
-Image* CreateImage(unsigned int w, unsigned int h) {
-    Image *result = malloc(sizeof(Image));
+MisoImage* MisoEmptyImage(unsigned int w, unsigned int h) {
+    MisoImage *result = malloc(sizeof(MisoImage));
     result->buf = malloc(w * h * sizeof(int));
     result->w = w;
     result->h = h;
     return result;
 }
 
-void DestroyImage(Image *img) {
+void MisoDestroyImage(MisoImage *img) {
     if (img) {
         if (img->buf)
             free(img->buf);
@@ -116,14 +96,14 @@ void DestroyImage(Image *img) {
     }
 }
 
-void ImageSet(Image *img, int x, int y, Color col) {
+void MisoImagePSet(MisoImage *img, int x, int y, MisoColor col) {
     assert(x >= 0 && x < img->w && y >= 0 && y < img->h);
     img->buf[y * img->w + x] = col.rgba;
 }
 
-Color ImageGet(Image *img, int x, int y) {
+MisoColor MisoImagePGet(MisoImage *img, int x, int y) {
     assert(x >= 0 && x < img->w && y >= 0 && y < img->h);
-    return (Color) {.rgba=img->buf[y * img->w + x]};
+    return (MisoColor) {.rgba=img->buf[y * img->w + x]};
 }
 
 static char* FileExt(const char *path) {
@@ -131,23 +111,23 @@ static char* FileExt(const char *path) {
     return !dot || dot == path ? NULL : dot + 1;
 }
 
-static Image* ImageFromFormattedMemory(unsigned char *data, int w, int h, int channels) {
-    Image *result = CreateImage(w, h);
+static MisoImage* ImageFromFormattedMemory(unsigned char *data, int w, int h, int channels) {
+    MisoImage *result = MisoEmptyImage(w, h);
     for (int x = 0; x < w; x++)
         for (int y = 0; y < h; y++) {
             unsigned char *p = data + (x + w * y) * channels;
-            Color c = (Color) {
+            MisoColor c = (MisoColor) {
                 .r = p[0],
                 .g = p[1],
                 .b = p[2],
                 .a = channels == 4 ? p[3] : 255
             };
-            ImageSet(result, x, y, c);
+            MisoImagePSet(result, x, y, c);
         }
     return result;
 }
 
-Image* LoadImageFromFile(const char *path) {
+MisoImage* MisoLoadImageFromFile(const char *path) {
     int w, h, c;
     unsigned char *data = NULL;
     char *ext = FileExt(path);
@@ -161,41 +141,41 @@ Image* LoadImageFromFile(const char *path) {
         data = stbi_load(path, &w, &h, &c, 4);
     assert(data);
     
-    Image *result = ImageFromFormattedMemory(data, w, h, c);
+    MisoImage *result = ImageFromFormattedMemory(data, w, h, c);
     free(data);
     return result;
 }
 
-Image* LoadImageMemory(const void *data, size_t sizeOfData) {
+MisoImage* LoadImageMemory(const void *data, size_t sizeOfData) {
     int w, h, c;
     unsigned char *fdata = stbi_load_from_memory((const stbi_uc*)data, (int)sizeOfData, &w, &h, &c, 4);
-    Image *result = ImageFromFormattedMemory(fdata, w, h, c);
+    MisoImage *result = ImageFromFormattedMemory(fdata, w, h, c);
     free(fdata);
     return result;
 }
 
-static Texture* NewTexture(sg_image_desc *desc) {
-    Texture *result = malloc(sizeof(Texture));
+static MisoTexture* NewTexture(sg_image_desc *desc) {
+    MisoTexture *result = malloc(sizeof(MisoTexture));
     result->sg = sg_make_image(desc);
     result->w = desc->width;
     result->h = desc->height;
     return result;
 }
 
-Texture* LoadTextureFromImage(Image *img) {
-    Texture *result = CreateEmptyTexture(img->w, img->h);
-    UpdateTexture(result, img);
+MisoTexture* MisoLoadTextureFromImage(MisoImage *img) {
+    MisoTexture *result = MisoEmptyTexture(img->w, img->h);
+    MisoUpdateTexture(result, img);
     return result;
 }
 
-Texture* LoadTextureFromFile(const char *path) {
-    Image *img = LoadImageFromFile(path);
-    Texture *result = LoadTextureFromImage(img);
-    DestroyImage(img);
+MisoTexture* MisoLoadTextureFromFile(const char *path) {
+    MisoImage *img = MisoLoadImageFromFile(path);
+    MisoTexture *result = MisoLoadTextureFromImage(img);
+    MisoDestroyImage(img);
     return result;
 }
 
-Texture* CreateEmptyTexture(int w, int h) {
+MisoTexture* MisoEmptyTexture(int w, int h) {
     sg_image_desc desc = {
         .width = w,
         .height = h,
@@ -204,10 +184,10 @@ Texture* CreateEmptyTexture(int w, int h) {
     return NewTexture(&desc);
 }
 
-void UpdateTexture(Texture *texture, Image *img) {
+void MisoUpdateTexture(MisoTexture *texture, MisoImage *img) {
     if (texture->w != img->w || texture->h != img->h) {
-        DestroyTexture(texture);
-        texture = CreateEmptyTexture(img->w, img->h);
+        MisoDestroyTexture(texture);
+        texture = MisoEmptyTexture(img->w, img->h);
     }
     sg_image_data data = {
         .subimage[0][0] = (sg_range) {
@@ -960,10 +940,10 @@ static inline const sg_shader_desc* texture_program_shader_desc(sg_backend backe
 }
 #endif
 
-typedef Vertex Quad[6];
+typedef MisoVertex Quad[6];
 
-static void GenerateQuad(Vector2 position, Vector2 textureSize, Vector2 size, Vector2 scale, Vector2 viewportSize, float rotation, Rectangle clip, Quad *out) {
-    Vector2 quad[4] = {
+static void GenerateQuad(MisoVec2 position, MisoVec2 textureSize, MisoVec2 size, MisoVec2 scale, MisoVec2 viewportSize, float rotation, MisoRect clip, Quad *out) {
+    MisoVec2 quad[4] = {
         {position.x, position.y + size.y}, // bottom left
         {position.x + size.x, position.y + size.y}, // bottom right
         {position.x + size.x, position.y }, // top right
@@ -972,7 +952,7 @@ static void GenerateQuad(Vector2 position, Vector2 textureSize, Vector2 size, Ve
     float vw =  2.f / (float)viewportSize.x;
     float vh = -2.f / (float)viewportSize.y;
     for (int j = 0; j < 4; j++)
-        quad[j] = (Vector2) {
+        quad[j] = (MisoVec2) {
             (vw * quad[j].x + -1.f) * scale.x,
             (vh * quad[j].y +  1.f) * scale.y
         };
@@ -982,7 +962,7 @@ static void GenerateQuad(Vector2 position, Vector2 textureSize, Vector2 size, Ve
     float tt = clip.y*ih;
     float tr = (clip.x + clip.w)*iw;
     float tb = (clip.y + clip.h)*ih;
-    Vector2 vtexquad[4] = {
+    MisoVec2 vtexquad[4] = {
         {tl, tb}, // bottom left
         {tr, tb}, // bottom right
         {tr, tt}, // top right
@@ -994,16 +974,16 @@ static void GenerateQuad(Vector2 position, Vector2 textureSize, Vector2 size, Ve
     };
     
     for (int i = 0; i < 6; i++)
-        (*out)[i] = (Vertex) {
+        (*out)[i] = (MisoVertex) {
             .position = quad[indices[i]],
             .texcoord = vtexquad[indices[i]],
             .color = {1.f, 1.f, 1.f, 1.f}
         };
 }
 
-void DrawTexture(Texture *texture, Vector2 position, Vector2 size, Vector2 scale, Vector2 viewportSize, float rotation, Rectangle clip) {
+void MisoDrawTexture(MisoTexture *texture, MisoVec2 position, MisoVec2 size, MisoVec2 scale, MisoVec2 viewportSize, float rotation, MisoRect clip) {
     Quad quad;
-    GenerateQuad(position, (Vector2){texture->w, texture->h}, size, scale, viewportSize, rotation, clip, &quad);
+    GenerateQuad(position, (MisoVec2){texture->w, texture->h}, size, scale, viewportSize, rotation, clip, &quad);
     sg_buffer_desc desc = {
         .data = SG_RANGE(quad)
     };
@@ -1016,7 +996,7 @@ void DrawTexture(Texture *texture, Vector2 position, Vector2 size, Vector2 scale
     sg_destroy_buffer(bind.vertex_buffers[0]);
 }
 
-void DestroyTexture(Texture *texture) {
+void MisoDestroyTexture(MisoTexture *texture) {
     if (texture) {
         if (sg_query_image_state(texture->sg) == SG_RESOURCESTATE_VALID)
             sg_destroy_image(texture->sg);
@@ -1024,15 +1004,15 @@ void DestroyTexture(Texture *texture) {
     }
 }
 
-TextureBatch* CreateTextureBatch(Texture *texture, int max) {
-    TextureBatch *result = malloc(sizeof(TextureBatch));
+MisoTextureBatch* MisoCreateTextureBatch(MisoTexture *texture, int max) {
+    MisoTextureBatch *result = malloc(sizeof(MisoTextureBatch));
     result->maxVertices = max * 6;
     result->vertexCount = 0;
-    result->size = (Vector2){texture->w, texture->h};
-    result->vertices = malloc(result->maxVertices * sizeof(Vertex));
+    result->size = (MisoVec2){texture->w, texture->h};
+    result->vertices = malloc(result->maxVertices * sizeof(MisoVertex));
     sg_buffer_desc desc = {
         .usage = SG_USAGE_STREAM,
-        .size = result->maxVertices * sizeof(Vertex)
+        .size = result->maxVertices * sizeof(MisoVertex)
     };
     result->bind = (sg_bindings) {
         .vertex_buffers[0] = sg_make_buffer(&desc),
@@ -1041,24 +1021,24 @@ TextureBatch* CreateTextureBatch(Texture *texture, int max) {
     return result;
 }
 
-void TextureBatchDraw(TextureBatch *batch, Vector2 position, Vector2 size, Vector2 scale, Vector2 viewportSize, float rotation, Rectangle clip) {
+void MisoTextureBatchDraw(MisoTextureBatch *batch, MisoVec2 position, MisoVec2 size, MisoVec2 scale, MisoVec2 viewportSize, float rotation, MisoRect clip) {
     GenerateQuad(position, batch->size, size, scale, viewportSize, rotation, clip, (Quad*)(batch->vertices + batch->vertexCount));
     batch->vertexCount += 6;
 }
 
-void FlushTextureBatch(TextureBatch *batch) {
+void MisoFlushTextureBatch(MisoTextureBatch *batch) {
     sg_range range = {
         .ptr = batch->vertices,
-        .size = batch->vertexCount * sizeof(Vertex)
+        .size = batch->vertexCount * sizeof(MisoVertex)
     };
     sg_update_buffer(batch->bind.vertex_buffers[0], &range);
     sg_apply_bindings(&batch->bind);
     sg_draw(0, batch->vertexCount, 1);
-    memset(batch->vertices, 0, batch->maxVertices * sizeof(Vertex));
+    memset(batch->vertices, 0, batch->maxVertices * sizeof(MisoVertex));
     batch->vertexCount = 0;
 }
 
-void DestroyTextureBatch(TextureBatch *batch) {
+void MisoDestroyTextureBatch(MisoTextureBatch *batch) {
     if (batch) {
         if (batch->vertices)
             free(batch->vertices);
@@ -1774,7 +1754,7 @@ static void DestroyFramebuffer(void) {
 
 static void BuildFramebuffer(int width, int height) {
     DestroyFramebuffer();
-    state.size = (Vector2){width, height};
+    state.size = (MisoVec2){width, height};
     
     sg_image_desc img_desc = {
         .render_target = true,
@@ -1800,7 +1780,7 @@ static void BuildFramebuffer(int width, int height) {
 void OrderMiso(void) {
     assert(!state.initialized);
     state.initialized = true;
-    state.size = (Vector2){-1, -1};
+    state.size = (MisoVec2){-1, -1};
     
 #if !defined(MISO_DISABLE_FRAMEBUFFER)
     const float vertices[] = {
@@ -1849,7 +1829,7 @@ void OrderMiso(void) {
         .primitive_type = SG_PRIMITIVETYPE_TRIANGLES,
         .shader = sg_make_shader(texture_program_shader_desc(sg_query_backend())),
         .layout = {
-            .buffers[0].stride = sizeof(Vertex),
+            .buffers[0].stride = sizeof(MisoVertex),
             .attrs = {
                 [ATTR_texture_vs_position].format=SG_VERTEXFORMAT_FLOAT2,
                 [ATTR_texture_vs_texcoord].format=SG_VERTEXFORMAT_FLOAT2,

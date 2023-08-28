@@ -11,9 +11,9 @@
 #include "sokol_glue.h"
 
 static struct {
-    Texture *texture;
-    Chunk *map;
-    Vector2 camera;
+    MisoTexture *texture;
+    MisoChunk *map;
+    MisoVec2 camera;
 } state;
 
 #define MAP_SIZE 256
@@ -28,21 +28,21 @@ static void init(void) {
     
     OrderMiso();
     
-    state.camera = (Vector2){0.f, 0.f};
-    state.texture = LoadTextureFromFile("assets/tiles.png");
-    state.map = CreateChunk(state.texture, MAP_SIZE, MAP_SIZE, TILE_WIDTH, TILE_HEIGHT);
+    state.camera = (MisoVec2){0.f, 0.f};
+    state.texture = MisoLoadTextureFromFile("assets/tiles.png");
+    state.map = MisoEmptyChunk(state.texture, MAP_SIZE, MAP_SIZE, TILE_WIDTH, TILE_HEIGHT);
 }
 
 static void frame(void) {
     OrderUp(sapp_width(), sapp_height());
-    DrawChunk(state.map, state.camera);
+    MisoDrawChunk(state.map, state.camera);
     FinishMiso();
     sg_commit();
 }
 
 static void cleanup(void) {
-    DestroyTexture(state.texture);
-    DestroyChunk(state.map);
+    MisoDestroyTexture(state.texture);
+    MisoDestroyChunk(state.map);
     CleanUpMiso();
     sg_shutdown();
 }

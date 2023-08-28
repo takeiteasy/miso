@@ -70,13 +70,13 @@ typedef struct {
 
 static struct {
     sg_pass_action pass_action;
-    Texture *gridTexture, *mapTexture;
-    Chunk *grid, *map;
-    Camera camera;
+    MisoTexture *gridTexture, *mapTexture;
+    MisoChunk *grid, *map;
+    MisoCamera camera;
     float cameraSpeed;
     float cameraScrollSpeed;
     bool dragging;
-    Vector2 lastMousePos, mousePos;
+    MisoVec2 lastMousePos, mousePos;
     float scrollY;
     Settings settings;
 } state = {
@@ -105,14 +105,14 @@ static void init(void) {
     state.cameraScrollSpeed = .5f;
     
     OrderMiso();
-    state.camera = (Camera) {
-        .position = (Vector2){0.f, 0.f},
+    state.camera = (MisoCamera) {
+        .position = (MisoVec2){0.f, 0.f},
         .zoom = 1.f
     };
-    state.mapTexture = LoadTextureFromFile("assets/tiles.png");
-    state.map = CreateChunk(state.mapTexture, state.settings.mapWidth, state.settings.mapHeight, state.settings.tileWidth, state.settings.tileHeight);
-    state.gridTexture = LoadTextureFromFile("assets/grid.png");
-    state.grid = CreateChunk(state.gridTexture, state.settings.mapWidth, state.settings.mapHeight, state.settings.tileWidth, state.settings.tileHeight);
+    state.mapTexture = MisoLoadTextureFromFile("assets/tiles.png");
+    state.map = MisoEmptyChunk(state.mapTexture, state.settings.mapWidth, state.settings.mapHeight, state.settings.tileWidth, state.settings.tileHeight);
+    state.gridTexture = MisoLoadTextureFromFile("assets/grid.png");
+    state.grid = MisoEmptyChunk(state.gridTexture, state.settings.mapWidth, state.settings.mapHeight, state.settings.tileWidth, state.settings.tileHeight);
 }
 
 static void frame(void) {
@@ -173,8 +173,8 @@ static void frame(void) {
     nk_end(ctx);
 
     OrderUp(sapp_width(), sapp_height());
-    DrawChunk(state.map, &state.camera);
-    DrawChunk(state.grid, &state.camera);
+    MisoDrawChunk(state.map, &state.camera);
+    MisoDrawChunk(state.grid, &state.camera);
     snk_render(sapp_width(), sapp_height());
     FinishMiso();
     
@@ -204,7 +204,7 @@ static void event(const sapp_event *e) {
             state.dragging = e->mouse_button == SAPP_MOUSEBUTTON_LEFT && e->type == SAPP_EVENTTYPE_MOUSE_DOWN;
             break;
         case SAPP_EVENTTYPE_MOUSE_MOVE:
-            state.mousePos = (Vector2){e->mouse_x, e->mouse_y};
+            state.mousePos = (MisoVec2){e->mouse_x, e->mouse_y};
             break;
         default:
             break;
@@ -212,10 +212,10 @@ static void event(const sapp_event *e) {
 }
 
 static void cleanup(void) {
-    DestroyTexture(state.mapTexture);
-    DestroyTexture(state.gridTexture);
-    DestroyChunk(state.map);
-    DestroyChunk(state.grid);
+    MisoDestroyTexture(state.mapTexture);
+    MisoDestroyTexture(state.gridTexture);
+    MisoDestroyChunk(state.map);
+    MisoDestroyChunk(state.grid);
     CleanUpMiso();
     sg_shutdown();
 }
