@@ -109,10 +109,15 @@ typedef struct {
     int w, h;
 } Chunk;
 
+typedef struct {
+    Vector2 position;
+    float zoom;
+} Camera;
+
 EXPORT Chunk* CreateChunk(Texture *texture, int w, int h, int tw, int th);
 EXPORT int ChunkAt(Chunk *chunk, int x, int y);
 EXPORT void ChunkSet(Chunk *chunk, int x, int y, int value);
-EXPORT void DrawChunk(Chunk *chunk, Vector2 cameraPosition);
+EXPORT void DrawChunk(Chunk *chunk, Camera *camera);
 EXPORT void DestroyChunk(Chunk *chunk);
 
 EXPORT Image* CreateImage(unsigned int w, unsigned int h);

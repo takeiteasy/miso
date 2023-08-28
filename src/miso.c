@@ -53,11 +53,11 @@ void ChunkSet(Chunk *chunk, int x, int y, int value) {
     chunk->grid[y * chunk->w + x] = value;
 }
 
-void DrawChunk(Chunk *chunk, Vector2 cameraPosition) {
+void DrawChunk(Chunk *chunk, Camera *camera) {
     Vector2 halfTileSize = {chunk->tileW / 2.f, chunk->tileH / 2.f};
     Vector2 offset = {
-        .x = halfTileSize.x + (-cameraPosition.x + state.size.x / 2),
-        .y = halfTileSize.y + (-cameraPosition.y + state.size.y / 2)
+        .x = halfTileSize.x + (-camera->position.x + state.size.x / 2),
+        .y = halfTileSize.y + (-camera->position.y + state.size.y / 2)
     };
     for (int x = 0; x < chunk->w; x++)
         for (int y = 0; y < chunk->h; y++) {
@@ -65,7 +65,7 @@ void DrawChunk(Chunk *chunk, Vector2 cameraPosition) {
                 offset.x + ((float)x * chunk->tileW) + (y % 2 ? halfTileSize.x : 0),
                 offset.y + ((float)y * chunk->tileH) - (y * halfTileSize.y)
             };
-            TextureBatchDraw(chunk->batch, (Vector2){p.x - halfTileSize.x, p.y - halfTileSize.y}, (Vector2){chunk->tileW, chunk->tileH}, (Vector2){1.f, 1.f}, state.size, 0.f, (Rectangle){ChunkAt(chunk, x, y) * chunk->tileW, 0, chunk->tileW, chunk->tileH});
+            TextureBatchDraw(chunk->batch, (Vector2){p.x - halfTileSize.x, p.y - halfTileSize.y}, (Vector2){chunk->tileW, chunk->tileH}, (Vector2){camera->zoom, camera->zoom}, state.size, 0.f, (Rectangle){ChunkAt(chunk, x, y) * chunk->tileW, 0, chunk->tileW, chunk->tileH});
         }
     FlushTextureBatch(chunk->batch);
 }
@@ -963,19 +963,18 @@ static inline const sg_shader_desc* texture_program_shader_desc(sg_backend backe
 typedef Vertex Quad[6];
 
 static void GenerateQuad(Vector2 position, Vector2 textureSize, Vector2 size, Vector2 scale, Vector2 viewportSize, float rotation, Rectangle clip, Quad *out) {
-    Vector2 scaledSize = {size.x * scale.x, size.y * scale.y};
     Vector2 quad[4] = {
-        {position.x, position.y + scaledSize.y}, // bottom left
-        {position.x + scaledSize.x, position.y + scaledSize.y}, // bottom right
-        {position.x + scaledSize.x, position.y }, // top right
+        {position.x, position.y + size.y}, // bottom left
+        {position.x + size.x, position.y + size.y}, // bottom right
+        {position.x + size.x, position.y }, // top right
         {position.x, position.y }, // top left
     };
     float vw =  2.f / (float)viewportSize.x;
     float vh = -2.f / (float)viewportSize.y;
     for (int j = 0; j < 4; j++)
         quad[j] = (Vector2) {
-            vw * quad[j].x + -1.f,
-            vh * quad[j].y +  1.f
+            (vw * quad[j].x + -1.f) * scale.x,
+            (vh * quad[j].y +  1.f) * scale.y
         };
     
     float iw = 1.f/textureSize.x, ih = 1.f/(float)textureSize.y;
