@@ -60,7 +60,7 @@ SHADER_OUT=$@
 %.glsl.h: $(SHADERS)
 	$(SHDC_PATH) -i $(SHADER) -o $(SHADER_OUT) -l glsl330:metal_macos:hlsl5 -b
 
-shaders: $(SHADER_OUTS)
+shaders: $(SHADER_OUTS) clean
 
 clean:
 	rm $(OBJS) || true
