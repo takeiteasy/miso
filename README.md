@@ -24,6 +24,8 @@ Nothing to see yet
     - sokol_app.h
     - sokol_glue.h
     - sokol_nuklear.h
+- [Immediate-Mode-UI/Nuklear](https://github.com/Immediate-Mode-UI/Nuklear) (MIT/Public Domain)
+    - nuklear.h
 - [nothings/stb](https://github.com/nothings/stb/tree/master) (MIT/Public Domain)
     - stb_image.h
 - [phoboslab/qoi](https://github.com/phoboslab/qoi) (MIT)
