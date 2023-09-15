@@ -148,9 +148,9 @@ unsigned char* PerlinFBM(int w, int h, float xoff, float yoff, float z, float sc
 }
 
 static struct {
-    Texture *texture;
-    Chunk *map;
-    Vector2 camera;
+    MisoTexture *texture;
+    MisoChunk *map;
+    MisoCamera camera;
     bool mouseDown;
 } state;
 
@@ -166,24 +166,25 @@ static void init(void) {
     
     OrderMiso();
     
-    state.camera = (Vector2) {
+    state.camera.position = (MisoVec2) {
         MAP_SIZE * TILE_WIDTH / 2.f,
         MAP_SIZE * (TILE_HEIGHT / 2.f) / 2.f
     };
-    state.texture = LoadTextureFromFile("assets/tiles.png");
-    state.map = CreateChunk(state.texture, MAP_SIZE, MAP_SIZE, TILE_WIDTH, TILE_HEIGHT);
+    state.camera.zoom = 1.f;
+    state.texture = MisoLoadTextureFromFile("assets/tiles.png");
+    state.map = MisoEmptyChunk(state.texture, MAP_SIZE, MAP_SIZE, TILE_WIDTH, TILE_HEIGHT);
     unsigned char *noise = PerlinFBM(MAP_SIZE, MAP_SIZE, 0.f, 0.f, 0.f, 200.f, 2.f, .5f, 8);
     for (int x = 0; x < MAP_SIZE; x++)
         for (int y = 0; y < MAP_SIZE; y++) {
             float v = (int)Remap((float)noise[y * MAP_SIZE + x], 0.f, 255.f, 0.f, 5.f);
-            ChunkSet(state.map, x, y, v);
+            MisoChunkSet(state.map, x, y, v);
         }
     free(noise);
 }
 
 static void frame(void) {
     OrderUp(sapp_width(), sapp_height());
-    DrawChunk(state.map, state.camera);
+    MisoDrawChunk(state.map, &state.camera);
     FinishMiso();
     sg_commit();
 }
@@ -200,9 +201,9 @@ static void event(const sapp_event *e) {
             break;
         case SAPP_EVENTTYPE_MOUSE_MOVE:
             if (state.mouseDown) {
-                state.camera = (Vector2) {
-                    state.camera.x - e->mouse_dx,
-                    state.camera.y - e->mouse_dy,
+                state.camera.position = (MisoVec2) {
+                    state.camera.position.x - e->mouse_dx,
+                    state.camera.position.y - e->mouse_dy,
                 };
             }
             break;
@@ -212,8 +213,8 @@ static void event(const sapp_event *e) {
 }
 
 static void cleanup(void) {
-    DestroyTexture(state.texture);
-    DestroyChunk(state.map);
+    MisoDestroyTexture(state.texture);
+    MisoDestroyChunk(state.map);
     CleanUpMiso();
     sg_shutdown();
 }

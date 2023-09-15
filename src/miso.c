@@ -30,6 +30,7 @@ static struct {
 };
 
 MisoChunk* MisoEmptyChunk(MisoTexture *texture, int w, int h, int tileW, int tileH) {
+    assert(!(w % tileH));
     MisoChunk *result = malloc(sizeof(MisoChunk));
     result->batch = MisoCreateTextureBatch(texture, w * h);
     size_t sz = w * h * sizeof(int);
@@ -49,7 +50,7 @@ int MisoChunkAt(MisoChunk *chunk, int x, int y) {
 
 void MisoChunkSet(MisoChunk *chunk, int x, int y, int value) {
     assert(x >= 0 && x < chunk->w && y >= 0 && y < chunk->h);
-    assert(value < (chunk->w / chunk->tileW));
+    assert(value < (chunk->w / chunk->tileH));
     chunk->grid[y * chunk->w + x] = value;
 }
 

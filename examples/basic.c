@@ -13,7 +13,7 @@
 static struct {
     MisoTexture *texture;
     MisoChunk *map;
-    MisoVec2 camera;
+    MisoCamera camera;
 } state;
 
 #define MAP_SIZE 256
@@ -28,14 +28,15 @@ static void init(void) {
     
     OrderMiso();
     
-    state.camera = (MisoVec2){0.f, 0.f};
+    state.camera.position = (MisoVec2){0.f, 0.f};
+    state.camera.zoom = 1.f;
     state.texture = MisoLoadTextureFromFile("assets/tiles.png");
     state.map = MisoEmptyChunk(state.texture, MAP_SIZE, MAP_SIZE, TILE_WIDTH, TILE_HEIGHT);
 }
 
 static void frame(void) {
     OrderUp(sapp_width(), sapp_height());
-    MisoDrawChunk(state.map, state.camera);
+    MisoDrawChunk(state.map, &state.camera);
     FinishMiso();
     sg_commit();
 }
