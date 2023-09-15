@@ -171,7 +171,7 @@ static void init(void) {
         MAP_SIZE * (TILE_HEIGHT / 2.f) / 2.f
     };
     state.camera.zoom = 1.f;
-    state.texture = MisoLoadTextureFromFile("assets/tiles.png");
+    state.texture = MisoLoadTextureFromFile("assets/test.png");
     state.map = MisoEmptyChunk(state.texture, MAP_SIZE, MAP_SIZE, TILE_WIDTH, TILE_HEIGHT);
     unsigned char *noise = PerlinFBM(MAP_SIZE, MAP_SIZE, 0.f, 0.f, 0.f, 200.f, 2.f, .5f, 8);
     for (int x = 0; x < MAP_SIZE; x++)

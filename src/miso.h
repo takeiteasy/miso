@@ -111,6 +111,7 @@ typedef struct {
 
 typedef struct {
     MisoVec2 position;
+    MisoVec2 size;
     float zoom;
 } MisoCamera;
 
@@ -138,6 +139,10 @@ EXPORT MisoTextureBatch* MisoCreateTextureBatch(MisoTexture *texture, int maxVer
 EXPORT void MisoTextureBatchDraw(MisoTextureBatch *batch, MisoVec2 position, MisoVec2 size, MisoVec2 scale, MisoVec2 viewportSize, float rotation, MisoRect clip);
 EXPORT void MisoFlushTextureBatch(MisoTextureBatch *batch);
 EXPORT void MisoDestroyTextureBatch(MisoTextureBatch *batch);
+
+EXPORT MisoVec2 MisoScreenToChunkTile(MisoChunk *chunk, MisoCamera *camera, MisoVec2 point);
+EXPORT MisoVec2 MisoScreenToWorld(MisoCamera *camera, MisoVec2 point);
+EXPORT MisoVec2 MisoWorldToScreen(MisoCamera *camera, MisoVec2 point);
 
 EXPORT void OrderMiso(void);
 EXPORT void OrderUp(unsigned int width, unsigned int height);

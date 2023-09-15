@@ -1049,6 +1049,54 @@ void MisoDestroyTextureBatch(MisoTextureBatch *batch) {
     }
 }
 
+#define SIGN(A, B, C) (float)((A).x - (C).x) * ((B).y - (C).y) - ((B).x - (C).x) * ((A).y - (C).y)
+
+static bool IsPointInTri(MisoVec2 pt, MisoVec2 a, MisoVec2 b, MisoVec2 c) {
+    float ab = SIGN(pt, a, b);
+    float bc = SIGN(pt, b, c);
+    float ca = SIGN(pt, c, a);
+    return !(((ab < 0) || (bc < 0) || (ca < 0)) && ((ab > 0) || (bc > 0) || (ca > 0)));
+}
+
+MisoVec2 MisoScreenToChunkTile(MisoChunk *chunk, MisoCamera *camera, MisoVec2 point) {
+    MisoVec2 relativePos = MisoScreenToWorld(camera, point);
+    MisoVec2 gridPosition = {
+        .x = (int)relativePos.x / chunk->tileW,
+        .y = (int)relativePos.y / chunk->tileH
+    };
+    MisoVec2 offsetPosition = {
+        .x = gridPosition.x * chunk->tileW,
+        .y = gridPosition.y * chunk->tileH
+    };
+    
+    int halfTileWidth = chunk->tileW / 2;
+    int halfTileHeight = chunk->tileH / 2;
+    MisoVec2 a2 = (MisoVec2){offsetPosition.x + halfTileWidth, offsetPosition.y};
+    MisoVec2 a3 = (MisoVec2){offsetPosition.x, offsetPosition.y+halfTileHeight};
+    MisoVec2 b3 = (MisoVec2){offsetPosition.x+chunk->tileW, offsetPosition.y+halfTileHeight};
+    MisoVec2 c2 = (MisoVec2){offsetPosition.x+halfTileWidth, offsetPosition.y+chunk->tileH};
+    if (IsPointInTri(relativePos, offsetPosition, a2, a3))
+        return (MisoVec2){gridPosition.x-1, gridPosition.y-1};
+    if (IsPointInTri(relativePos, a2, (MisoVec2){offsetPosition.x+chunk->tileW, offsetPosition.y}, (MisoVec2){offsetPosition.x+chunk->tileW, offsetPosition.y+halfTileHeight}))
+        return (MisoVec2){gridPosition.x, gridPosition.y-1};
+    if (IsPointInTri(relativePos, a3, (MisoVec2){offsetPosition.x+halfTileWidth, offsetPosition.y+chunk->tileH}, (MisoVec2){offsetPosition.x, offsetPosition.y+chunk->tileH}))
+        return (MisoVec2){gridPosition.x-1, gridPosition.y+1};
+    if (IsPointInTri(relativePos, c2, b3, (MisoVec2){offsetPosition.x+chunk->tileW, offsetPosition.y+chunk->tileH}))
+        return (MisoVec2){gridPosition.x, gridPosition.y++};
+    return gridPosition;
+}
+
+MisoVec2 MisoScreenToWorld(MisoCamera *camera, MisoVec2 point) {
+    return (MisoVec2){
+        .x = (camera->position.x - (camera->size.x / 2)) + point.x,
+        .y = (camera->position.y - (camera->size.y / 2)) + point.y
+    };
+}
+
+MisoVec2 MisoWorldToScreen(MisoCamera *camera, MisoVec2 point) {
+    return (MisoVec2){0, 0};
+}
+
 #if !defined(MISO_DISABLE_FRAMEBUFFER)
 #if defined(MISO_LOAD_FRAMEBUFFER_SHADER)
 #include "../assets/framebuffer.glsl.h"

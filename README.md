@@ -1,6 +1,6 @@
 # miso
 
-Mini isometric game engine **WIP**
+Mini isometric game framework built with sokol. **WIP**
 
 ## TODO 
 
@@ -8,8 +8,6 @@ Mini isometric game engine **WIP**
 - [ ] Add screen <-> world position functions
 - [ ] Finalize API + ~~add namespace~~
 - [ ] Example: Integrate [.tmx loader](https://github.com/baylej/tmx)
-- [ ] Custom map loader (Optional) [in-progress]
-- [ ] Lua bindings
 - [ ] Documentation
 
 ## Gallery
@@ -20,21 +18,12 @@ Nothing to see yet
 
 - [floooh/sokol](https://github.com/floooh/sokol) (zlib/libpng)
     - sokol_gfx.h
-    - sokol_app.h
-    - sokol_glue.h
-    - sokol_nuklear.h
-- [Immediate-Mode-UI/Nuklear](https://github.com/Immediate-Mode-UI/Nuklear) (MIT/Public Domain)
-    - nuklear.h
+    - sokol_app.h (examples only)
+    - sokol_glue.h (examples only)
 - [nothings/stb](https://github.com/nothings/stb/tree/master) (MIT/Public Domain)
     - stb_image.h
 - [phoboslab/qoi](https://github.com/phoboslab/qoi) (MIT)
     - qoi.h
-- [tsoding/jim](https://github.com/tsoding/jim) (MIT)
-    - jim.h
-- [esr/microjson](https://gitlab.com/esr/microjson/) (BSD-2-clause)
-    - mjson.h
-- [AndrewBelt/osdialog](https://github.com/AndrewBelt/osdialog) (CC0)
-    - osdialog.h
     
 ## LICENSE
 ```

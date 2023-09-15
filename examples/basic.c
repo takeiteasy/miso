@@ -30,7 +30,7 @@ static void init(void) {
     
     state.camera.position = (MisoVec2){0.f, 0.f};
     state.camera.zoom = 1.f;
-    state.texture = MisoLoadTextureFromFile("assets/tiles.png");
+    state.texture = MisoLoadTextureFromFile("assets/test.png");
     state.map = MisoEmptyChunk(state.texture, MAP_SIZE, MAP_SIZE, TILE_WIDTH, TILE_HEIGHT);
 }
 
