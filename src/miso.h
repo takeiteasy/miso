@@ -111,7 +111,6 @@ typedef struct {
 
 typedef struct {
     MisoVec2 position;
-    MisoVec2 size;
     float zoom;
 } MisoCamera;
 

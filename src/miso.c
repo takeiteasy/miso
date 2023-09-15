@@ -1088,8 +1088,8 @@ MisoVec2 MisoScreenToChunkTile(MisoChunk *chunk, MisoCamera *camera, MisoVec2 po
 
 MisoVec2 MisoScreenToWorld(MisoCamera *camera, MisoVec2 point) {
     return (MisoVec2){
-        .x = (camera->position.x - (camera->size.x / 2)) + point.x,
-        .y = (camera->position.y - (camera->size.y / 2)) + point.y
+        .x = (camera->position.x - (state.size.x / 2)) + point.x,
+        .y = (camera->position.y - (state.size.y / 2)) + point.y
     };
 }
 
