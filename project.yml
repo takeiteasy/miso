@@ -7,30 +7,16 @@ options:
         macOS: "12.0"
 
 settings:
-    GCC_C_LANGUAGE_STANDARD: c11
+  GCC_C_LANGUAGE_STANDARD: c11
 
 targets:
-  test:
-    type: tool
-    platform: macOS
-    sources:
-        - path: examples/basic.c
-    dependencies:
-        - sdk: Cocoa.framework
-        - sdk: Quartz.framework
-        - target: miso
-    settings:
-        HEADER_SEARCH_PATHS: [$(PROJECT_DIR)/deps]
-        OTHER_CFLAGS: ["-x objective-c", -DSOKOL_METAL, -fobjc-arc]
   miso:
-    type: library.dynamic
+    type: tool
     platform: macOS
     sources:
         - path: assets/
           type: folder
         - path: deps/
-          type: folder
-        - path: tools
           type: folder
         - path: README.md
           type: folder
@@ -38,12 +24,11 @@ targets:
           type: folder
         - path: Makefile
           type: folder
-        - path: examples/
-          type: folder
         - path: src/
     dependencies:
+        - sdk: Cocoa.framework
         - sdk: Metal.framework
         - sdk: MetalKit.framework
     settings:
-        HEADER_SEARCH_PATHS: [$(PROJECT_DIR)/deps]
-        OTHER_CFLAGS: ["-x objective-c", -DSOKOL_METAL, -fobjc-arc, -DDEBUG, -DMISO_LOAD_TEXTURE_SHADER, -DMISO_LOAD_FRAMEBUFFER_SHADER]
+        HEADER_SEARCH_PATHS: [$(PROJECT_DIR)/src, $(PROJECT_DIR)/deps]
+        OTHER_CFLAGS: ["-x objective-c", -DSOKOL_METAL, -fobjc-arc]
