@@ -96,6 +96,7 @@ typedef struct {
 } MisoTexture;
 
 typedef struct {
+    MisoTexture *texture;
     MisoVertex *vertices;
     int maxVertices, vertexCount;
     sg_bindings bind;
@@ -117,6 +118,7 @@ typedef struct {
 EXPORT MisoChunk* MisoEmptyChunk(MisoTexture *texture, int w, int h, int tw, int th);
 EXPORT int MisoChunkAt(MisoChunk *chunk, int x, int y);
 EXPORT void MisoChunkSet(MisoChunk *chunk, int x, int y, int value);
+EXPORT void MisoDrawChunkCustom(MisoChunk *chunk, MisoCamera *camera, void(*cb)(MisoChunk*, MisoCamera*, MisoVec2, MisoVec2));
 EXPORT void MisoDrawChunk(MisoChunk *chunk, MisoCamera *camera);
 EXPORT void MisoDestroyChunk(MisoChunk *chunk);
 
@@ -135,11 +137,13 @@ EXPORT void MisoDrawTexture(MisoTexture *texture, MisoVec2 position, MisoVec2 si
 EXPORT void MisoDestroyTexture(MisoTexture *texture);
 
 EXPORT MisoTextureBatch* MisoCreateTextureBatch(MisoTexture *texture, int maxVertices);
+EXPORT void MisoResizeTextureBatch(MisoTextureBatch **batch, int newMaxVertices);
 EXPORT void MisoTextureBatchDraw(MisoTextureBatch *batch, MisoVec2 position, MisoVec2 size, MisoVec2 scale, MisoVec2 viewportSize, float rotation, MisoRect clip);
 EXPORT void MisoFlushTextureBatch(MisoTextureBatch *batch);
 EXPORT void MisoDestroyTextureBatch(MisoTextureBatch *batch);
 
 EXPORT MisoVec2 MisoScreenToChunkTile(MisoChunk *chunk, MisoCamera *camera, MisoVec2 point);
+EXPORT MisoVec2 MisoChunkTileToScreen(MisoChunk *chunk, MisoCamera *camera, MisoVec2 point);
 EXPORT MisoVec2 MisoScreenToWorld(MisoCamera *camera, MisoVec2 point);
 EXPORT MisoVec2 MisoWorldToScreen(MisoCamera *camera, MisoVec2 point);
 

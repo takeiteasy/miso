@@ -82,6 +82,7 @@ static struct {
     float cameraScrollSpeed;
     bool dragging;
     MisoVec2 lastMousePos, mousePos;
+    MisoVec2 mouseGridPos;
     float scrollY;
     Settings settings;
 } state = {
@@ -126,6 +127,11 @@ static void init(void) {
     state.map = MisoEmptyChunk(state.mapTexture, state.settings.mapWidth, state.settings.mapHeight, state.settings.tileWidth, state.settings.tileHeight);
     state.gridTexture = MisoLoadTextureFromFile("assets/grid.png");
     state.grid = MisoEmptyChunk(state.gridTexture, state.settings.mapWidth, state.settings.mapHeight, state.settings.tileWidth, state.settings.tileHeight);
+    MisoResizeTextureBatch(&state.grid->batch, (state.settings.mapWidth * state.settings.mapHeight) + 1);
+}
+
+static void DrawMapGrid(MisoChunk *chunk, MisoCamera *camera, MisoVec2 position, MisoVec2 gridPosition) {
+    MisoTextureBatchDraw(chunk->batch, (MisoVec2){position.x - (chunk->tileW / 2), position.y - (chunk->tileH / 2)}, (MisoVec2){chunk->tileW, chunk->tileH}, (MisoVec2){camera->zoom, camera->zoom}, (MisoVec2){sapp_width(), sapp_height()}, 0.f, (MisoRect){0, 0, chunk->tileW, chunk->tileH});
 }
 
 static void frame(void) {
@@ -185,13 +191,13 @@ static void frame(void) {
     }
     nk_end(ctx);
 
-    for (int x = state.map->w; x < state.map->w; x++)
-        for (int y = state.map->h; y < state.map->h; y++)
-            MisoChunkSet(state.map, x, y, 1);
-    
     OrderUp(sapp_width(), sapp_height());
     MisoDrawChunk(state.map, &state.camera);
-    MisoDrawChunk(state.grid, &state.camera);
+    MisoDrawChunkCustom(state.grid, &state.camera, DrawMapGrid);
+    // TODO: World <-> Screen conversions need work, still not very accurate
+    MisoVec2 mouseGridPosition = MisoChunkTileToScreen(state.grid, &state.camera, state.mouseGridPos);
+    MisoTextureBatchDraw(state.grid->batch, (MisoVec2){mouseGridPosition.x - (state.grid->tileW / 2), mouseGridPosition.y - (state.grid->tileH / 2)}, (MisoVec2){state.grid->tileW, state.grid->tileH}, (MisoVec2){state.camera.zoom, state.camera.zoom}, (MisoVec2){sapp_width(), sapp_height()}, 0.f, (MisoRect){state.grid->tileW, 0, state.grid->tileW, state.grid->tileH});
+    MisoFlushTextureBatch(state.grid->batch);
     snk_render(sapp_width(), sapp_height());
     FinishMiso();
     
@@ -222,6 +228,7 @@ static void event(const sapp_event *e) {
             break;
         case SAPP_EVENTTYPE_MOUSE_MOVE:
             state.mousePos = (MisoVec2){e->mouse_x, e->mouse_y};
+            state.mouseGridPos = MisoScreenToChunkTile(state.map, &state.camera, state.mousePos);
             break;
         default:
             break;

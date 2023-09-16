@@ -54,20 +54,18 @@ void MisoChunkSet(MisoChunk *chunk, int x, int y, int value) {
     chunk->grid[y * chunk->w + x] = value;
 }
 
-void MisoDrawChunk(MisoChunk *chunk, MisoCamera *camera) {
-    MisoVec2 halfTileSize = {chunk->tileW / 2.f, chunk->tileH / 2.f};
-    MisoVec2 offset = {
-        .x = halfTileSize.x + (-camera->position.x + state.size.x / 2),
-        .y = halfTileSize.y + (-camera->position.y + state.size.y / 2)
-    };
+void MisoDrawChunkCustom(MisoChunk *chunk, MisoCamera *camera, void(*Callback)(MisoChunk*, MisoCamera*, MisoVec2, MisoVec2)) {
     for (int x = 0; x < chunk->w; x++)
-        for (int y = 0; y < chunk->h; y++) {
-            MisoVec2 p = (MisoVec2) {
-                offset.x + ((float)x * chunk->tileW) + (y % 2 ? halfTileSize.x : 0),
-                offset.y + ((float)y * chunk->tileH) - (y * halfTileSize.y)
-            };
-            MisoTextureBatchDraw(chunk->batch, (MisoVec2){p.x - halfTileSize.x, p.y - halfTileSize.y}, (MisoVec2){chunk->tileW, chunk->tileH}, (MisoVec2){camera->zoom, camera->zoom}, state.size, 0.f, (MisoRect){MisoChunkAt(chunk, x, y) * chunk->tileW, 0, chunk->tileW, chunk->tileH});
-        }
+        for (int y = 0; y < chunk->h; y++)
+            Callback(chunk, camera, MisoChunkTileToScreen(chunk, camera, (MisoVec2){x, y}), (MisoVec2){x, y});
+}
+
+static void DrawChunkDefault(MisoChunk *chunk, MisoCamera *camera, MisoVec2 position, MisoVec2 gridPosition) {
+    MisoTextureBatchDraw(chunk->batch, (MisoVec2){position.x - (chunk->tileW / 2), position.y - (chunk->tileH / 2)}, (MisoVec2){chunk->tileW, chunk->tileH}, (MisoVec2){camera->zoom, camera->zoom}, state.size, 0.f, (MisoRect){MisoChunkAt(chunk, gridPosition.x, gridPosition.y) * chunk->tileW, 0, chunk->tileW, chunk->tileH});
+}
+
+void MisoDrawChunk(MisoChunk *chunk, MisoCamera *camera) {
+    MisoDrawChunkCustom(chunk, camera, DrawChunkDefault);
     MisoFlushTextureBatch(chunk->batch);
 }
 
@@ -1011,6 +1009,7 @@ MisoTextureBatch* MisoCreateTextureBatch(MisoTexture *texture, int max) {
     result->vertexCount = 0;
     result->size = (MisoVec2){texture->w, texture->h};
     result->vertices = malloc(result->maxVertices * sizeof(MisoVertex));
+    result->texture = texture;
     sg_buffer_desc desc = {
         .usage = SG_USAGE_STREAM,
         .size = result->maxVertices * sizeof(MisoVertex)
@@ -1020,6 +1019,14 @@ MisoTextureBatch* MisoCreateTextureBatch(MisoTexture *texture, int max) {
         .fs_images[SLOT_tex] = texture->sg
     };
     return result;
+}
+
+void MisoResizeTextureBatch(MisoTextureBatch **batch, int newMaxVertices) {
+    MisoTextureBatch *_batch = *batch;
+    assert(batch && _batch->texture && sg_query_image_state(_batch->texture->sg) == SG_RESOURCESTATE_VALID);
+    MisoTextureBatch *new = MisoCreateTextureBatch(_batch->texture, newMaxVertices);
+    MisoDestroyTextureBatch(_batch);
+    *batch = new;
 }
 
 void MisoTextureBatchDraw(MisoTextureBatch *batch, MisoVec2 position, MisoVec2 size, MisoVec2 scale, MisoVec2 viewportSize, float rotation, MisoRect clip) {
@@ -1061,8 +1068,8 @@ static bool IsPointInTri(MisoVec2 pt, MisoVec2 a, MisoVec2 b, MisoVec2 c) {
 MisoVec2 MisoScreenToChunkTile(MisoChunk *chunk, MisoCamera *camera, MisoVec2 point) {
     MisoVec2 relativePos = MisoScreenToWorld(camera, point);
     MisoVec2 gridPosition = {
-        .x = (int)relativePos.x / chunk->tileW,
-        .y = (int)relativePos.y / chunk->tileH
+        .x = relativePos.x / chunk->tileW,
+        .y = relativePos.y / (chunk->tileH / 2)
     };
     MisoVec2 offsetPosition = {
         .x = gridPosition.x * chunk->tileW,
@@ -1086,6 +1093,20 @@ MisoVec2 MisoScreenToChunkTile(MisoChunk *chunk, MisoCamera *camera, MisoVec2 po
     return gridPosition;
 }
 
+MisoVec2 MisoChunkTileToScreen(MisoChunk *chunk, MisoCamera *camera, MisoVec2 point) {
+    MisoVec2 halfTileSize = {chunk->tileW / 2.f, chunk->tileH / 2.f};
+    int x = (int)point.x;
+    int y = (int)point.y;
+    MisoVec2 offset = {
+        .x = halfTileSize.x + (-camera->position.x + state.size.x / 2),
+        .y = halfTileSize.y + (-camera->position.y + state.size.y / 2)
+    };
+    return (MisoVec2) {
+        offset.x + ((float)x * chunk->tileW) + (y % 2 ? halfTileSize.x : 0),
+        offset.y + ((float)y * chunk->tileH) - (y * halfTileSize.y)
+    };
+}
+
 MisoVec2 MisoScreenToWorld(MisoCamera *camera, MisoVec2 point) {
     return (MisoVec2){
         .x = (camera->position.x - (state.size.x / 2)) + point.x,
@@ -1094,6 +1115,7 @@ MisoVec2 MisoScreenToWorld(MisoCamera *camera, MisoVec2 point) {
 }
 
 MisoVec2 MisoWorldToScreen(MisoCamera *camera, MisoVec2 point) {
+    // TODO: Implement World to Screen coordinates
     return (MisoVec2){0, 0};
 }
 
