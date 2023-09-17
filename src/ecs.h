@@ -20,18 +20,20 @@ typedef union {
     uint64_t id;
 } EcsEntity;
 
-typedef enum {
-    EcsEntityType    = 0,
-    EcsComponentType = (1 << 0),
-    EcsSystemType    = (1 << 1),
-} EntityFlag;
+typedef enum EcsType {
+    EcsNormal = 0,
+    EcsComponent,
+    EcsSystem,
+} EcsType;
 
 typedef struct EcsWorld* EcsWorld;
 
-EcsEntity EcsNewEntity(EcsWorld world);
-int EcsIsValid(EcsWorld world, EcsEntity e);
-int EcsHas(EcsWorld world, EcsEntity entity, EcsEntity component);
-EcsEntity EcsNewComponent(EcsWorld world, size_t sizeOfComponent);
+void InitEcsWorld(void);
+void DestroyEcsWorld(void);
+EcsEntity EcsNewEntity(uint8_t type);
+int EcsIsEntityValid(EcsEntity e);
+int EcsEntityHas(EcsEntity entity, EcsEntity component);
+EcsEntity EcsNewComponent(size_t sizeOfComponent);
 
 void LuaLoadEcs(lua_State *L);
 

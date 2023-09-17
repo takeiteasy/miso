@@ -5,7 +5,6 @@
 //  Created by George Watson on 17/08/2023.
 //
 
-
 #define SOKOL_IMPL
 #define SOKOL_NO_ENTRY
 #define STB_IMAGE_IMPLEMENTATION

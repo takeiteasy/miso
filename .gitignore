@@ -13,3 +13,4 @@ examples/basic
 examples/perlin
 assets/*.h
 editor/miso_editor_osx_arm64
+miso_osx_arm64

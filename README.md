@@ -22,11 +22,21 @@ Nothing to see yet
 - [tsoding/jim](https://github.com/tsoding/jim) (MIT)
     - jim.h
 - [esr/microjson](https://gitlab.com/esr/microjson/) (BSD-2-clause)
-    - mjson.h
+    - mjson.h *
 - [AndrewBelt/osdialog](https://github.com/AndrewBelt/osdialog) (CC0)
     - osdialog.h
 - [edubart/minilua](https://github.com/edubart/minilua) (MIT)
     - minilua.h
+- [yasuoka/luacstruct](https://github.com/yasuoka/luacstruct) (MIT)
+    - luacstruct.h *
+- [openbsd/src](https://github.com/openbsd/src) (BSD-2-clause)
+    - sys/null.h
+    - sys/queue.h *
+    - sys/tree.h *
+- [panzi/portable_endian.h](https://gist.github.com/panzi/6856583) (Public Domain)
+    - portable_endian.h
+
+```* ~ Modified in some way, probably small changes to make building easier```
     
 ## LICENSE
 ```

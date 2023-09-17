@@ -5,8 +5,11 @@
 //  Created by George Watson on 15/09/2023.
 //
 
+
 #define LUA_IMPL
 #include "ecs.h"
+#define LUACSTRUCT_IMPL
+#include "luacstruct.h"
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
@@ -204,7 +207,7 @@ static void* StorageGet(EcsStorage *storage, EcsEntity e) {
     return StorageAt(storage, SparseAt(storage->sparse, e));
 }
 
-struct EcsWorld {
+static struct EcsWorld {
     EcsStorage **storages;
     size_t sizeOfStorages;
     EcsEntity *entities;
@@ -212,13 +215,29 @@ struct EcsWorld {
     uint32_t *recyclable;
     size_t sizeOfRecyclable;
     uint32_t nextAvailableId;
-};
+} world;
 
-static EcsEntity EcsNewEntityType(EcsWorld world, uint8_t type) {
-    ASSERT(world);
-    if (world->sizeOfRecyclable) {
-        uint32_t idx = world->recyclable[world->sizeOfRecyclable-1];
-        EcsEntity e = world->entities[idx];
+void InitEcsWorld(void) {
+    DestroyEcsWorld();
+    world.nextAvailableId = EcsNil;
+    // TODO: Initialize built-in defaults
+}
+
+void DestroyEcsWorld(void) {
+    if (world.storages) {
+        for (int i = 0; i < world.sizeOfStorages; i++)
+            DeleteStorage(&world.storages[i]);
+        free(world.storages);
+    }
+    SAFE_FREE(world.entities);
+    SAFE_FREE(world.recyclable);
+    memset(&world, 0, sizeof(struct EcsWorld));
+}
+
+EcsEntity EcsNewEntity(uint8_t type) {
+    if (world.sizeOfRecyclable) {
+        uint32_t idx = world.recyclable[world.sizeOfRecyclable-1];
+        EcsEntity e = world.entities[idx];
         EcsEntity new = {
             .parts = {
                 .id = e.parts.id,
@@ -227,118 +246,94 @@ static EcsEntity EcsNewEntityType(EcsWorld world, uint8_t type) {
                 .flag = type
             }
         };
-        world->entities[idx] = new;
-        world->recyclable = realloc(world->recyclable, --world->sizeOfRecyclable * sizeof(uint32_t));
+        world.entities[idx] = new;
+        world.recyclable = realloc(world.recyclable, --world.sizeOfRecyclable * sizeof(uint32_t));
         return new;
     } else {
-        world->entities = realloc(world->entities, ++world->sizeOfEntities * sizeof(EcsEntity));
+        world.entities = realloc(world.entities, ++world.sizeOfEntities * sizeof(EcsEntity));
         EcsEntity e = {
             .parts = {
-                .id = (uint32_t)world->sizeOfEntities-1,
+                .id = (uint32_t)world.sizeOfEntities-1,
                 .version = 0,
                 .unused = 0,
                 .flag = type
             }
         };
-        world->entities[world->sizeOfEntities-1] = e;
+        world.entities[world.sizeOfEntities-1] = e;
         return e;
     }
 }
 
-EcsEntity EcsNewEntity(EcsWorld world) {
-    return EcsNewEntityType(world, EcsEntityType);
-}
-
-static EcsStorage* EcsFind(EcsWorld world, EcsEntity e) {
-    for (int i = 0; i < world->sizeOfStorages; i++)
-        if (world->storages[i]->componentId.parts.id == e.parts.id)
-            return world->storages[i];
+static EcsStorage* EcsFind(EcsEntity e) {
+    for (int i = 0; i < world.sizeOfStorages; i++)
+        if (world.storages[i]->componentId.parts.id == e.parts.id)
+            return world.storages[i];
     return NULL;
 }
 
-static EcsStorage* EcsAssure(EcsWorld world, EcsEntity componentId, size_t sizeOfComponent) {
-    EcsStorage *found = EcsFind(world, componentId);
+static EcsStorage* EcsAssure(EcsEntity componentId, size_t sizeOfComponent) {
+    EcsStorage *found = EcsFind(componentId);
     if (found)
         return found;
     EcsStorage *new = NewStorage(componentId, sizeOfComponent);
-    world->storages = realloc(world->storages, (world->sizeOfStorages + 1) * sizeof * world->storages);
-    world->storages[world->sizeOfStorages++] = new;
+    world.storages = realloc(world.storages, (world.sizeOfStorages + 1) * sizeof * world.storages);
+    world.storages[world.sizeOfStorages++] = new;
     return new;
 }
 
-EcsEntity EcsNewComponent(EcsWorld world, size_t sizeOfComponent) {
-    EcsEntity e = EcsNewEntityType(world, EcsComponentType);
-    return EcsAssure(world, e, sizeOfComponent) ? e : EcsNilEntity;
+EcsEntity EcsNewComponent(size_t sizeOfComponent) {
+    EcsEntity e = EcsNewEntity(EcsComponent);
+    return EcsAssure(e, sizeOfComponent) ? e : EcsNilEntity;
 }
 
-int EcsIsValid(EcsWorld world, EcsEntity e) {
-    ASSERT(world);
+int EcsIsEntityValid(EcsEntity e) {
     uint32_t id = e.parts.id;
-    return id < world->sizeOfEntities && world->entities[id].parts.id == e.parts.id;
+    return id < world.sizeOfEntities && world.entities[id].parts.id == e.parts.id;
 }
 
-int EcsHas(EcsWorld world, EcsEntity entity, EcsEntity component) {
-    ASSERT(world);
-    ECS_ASSERT(EcsIsValid(world, entity), Entity, entity);
-    ECS_ASSERT(EcsIsValid(world, component), Entity, component);
-    return StorageHas(EcsFind(world, component), entity);
+int EcsEntityHas(EcsEntity entity, EcsEntity component) {
+    ECS_ASSERT(EcsIsEntityValid(entity), Entity, entity);
+    ECS_ASSERT(EcsIsEntityValid(component), Entity, component);
+    return StorageHas(EcsFind(component), entity);
 }
 
-typedef struct {
-    EcsWorld world;
-} LuaWorld;
-
-static int EcsNewWorldL(lua_State *L) {
-    LuaWorld *result = (LuaWorld*)lua_newuserdata(L, sizeof(LuaWorld));
-    result->world = malloc(sizeof(struct EcsWorld));
-    result->world->nextAvailableId = EcsNil;
-    luaL_getmetatable(L, "World");
-    lua_setmetatable(L, -2);
-    return 1;
+static int luaEcsResetWorld(lua_State *L) {
+    InitEcsWorld();
+    return 0;
 }
 
-static int EcsNewEntityL(lua_State *L) {
-    LuaWorld *worldL = (LuaWorld*)luaL_checkudata(L, 1, "World");
-    EcsEntity e = EcsNewEntity(worldL->world);
+static int luaEcsNewEntity(lua_State *L) {
+    EcsType type = EcsNormal;
+    switch (lua_gettop(L)) {
+        case 1:
+            break;
+        case 2:;
+            struct luacenum_value *v = luaL_checkudata(L, 2, "luacenumval1");
+            type = (EcsType)v->value;
+            break;
+        default:
+            assert(0);
+    }
+    EcsEntity e = EcsNewEntity((uint8_t)type);
     lua_pushinteger(L, e.id);
     return 1;
 }
 
-static int EcsDeleteWorldL(lua_State *L) {
-    LuaWorld *worldL = (LuaWorld*)luaL_checkudata(L, 1, "World");
-    if (worldL->world->storages) {
-        for (int i = 0; i < worldL->world->sizeOfStorages; i++)
-            DeleteStorage(&worldL->world->storages[i]);
-        free(worldL->world->storages);
-        worldL->world->storages = NULL;
-    }
-    SAFE_FREE(worldL->world->entities);
-    SAFE_FREE(worldL->world->recyclable);
-    SAFE_FREE(worldL->world);
-    return 0;
-}
-
 static const struct luaL_Reg EcsMethods[] = {
-    {"createEntity", EcsNewEntityL},
     {NULL, NULL}
 };
 
 static const struct luaL_Reg EcsFunctions[] = {
-    {"new", EcsNewWorldL},
+    {"resetWorld", luaEcsResetWorld},
+    {"createEntity", luaEcsNewEntity},
     {NULL, NULL}
 };
 
 static int luaopen_Ecs(lua_State *L) {
     luaL_newlib(L, EcsFunctions);
-    
-    luaL_newmetatable(L, "World");
+    luaL_newmetatable(L, "Ecs");
     luaL_newlib(L, EcsMethods);
     lua_setfield(L, -2, "__index");
-    
-    lua_pushstring(L, "__gc");
-    lua_pushcfunction(L, EcsDeleteWorldL);
-    lua_settable(L, -3);
-    
     lua_pop(L, 1);
     return 1;
 }
@@ -346,4 +341,10 @@ static int luaopen_Ecs(lua_State *L) {
 void LuaLoadEcs(lua_State *L) {
     luaL_requiref(L, "Ecs", &luaopen_Ecs, 1);
     lua_pop(L, 1);
+    
+    luacs_newenum(L, EcsType);
+    luacs_enum_declare_value(L, "Entity",   EcsNormal);
+    luacs_enum_declare_value(L, "Component", EcsComponent);
+    luacs_enum_declare_value(L, "System",  EcsSystem);
+    lua_setglobal(L, "EcsType");
 }
