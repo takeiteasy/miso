@@ -297,6 +297,64 @@ int EcsEntityHas(EcsEntity entity, EcsEntity component) {
     return StorageHas(EcsFind(component), entity);
 }
 
+static void LuaDumpTable(lua_State* L);
+
+static void PrintStackAt(lua_State *L, int idx) {
+    int t = lua_type(L, idx);
+    switch (t) {
+        case LUA_TSTRING:
+            printf("(string): `%s'", lua_tostring(L, idx));
+            break;
+        case LUA_TBOOLEAN:
+            printf("(boolean): %s", lua_toboolean(L, idx) ? "true" : "false");
+            break;
+        case LUA_TNUMBER:
+            printf("(integer): %g",  lua_tonumber(L, idx));
+            break;
+        case LUA_TTABLE:
+            printf("(table):\n");
+            lua_settop(L, idx);
+            LuaDumpTable(L);
+            break;
+        default:;
+            printf("(%s): %p", lua_typename(L, t), lua_topointer(L, idx));
+            break;
+    }
+}
+
+static void LuaDumpTable(lua_State* L) {
+    if (!lua_istable(L, -1))
+        luaL_error(L, "Expected a table at the top of the stack");
+    
+    lua_pushnil(L);
+    while (lua_next(L, -2) != 0) {
+        if (lua_type(L, -2) == LUA_TSTRING)
+            printf("%s", lua_tostring(L, -2));
+        else
+            PrintStackAt(L, -2);
+        if (lua_type(L, -1) == LUA_TTABLE) {
+            printf("\n");
+            LuaDumpTable(L);
+        } else {
+            printf(" -- ");
+            PrintStackAt(L, -1);
+            printf("\n");
+        }
+        lua_pop(L, 1);
+    }
+}
+
+static int LuaDumpStack(lua_State* L) {
+    printf("--------------- LUA STACK DUMP ---------------\n");
+    for (int i = lua_gettop(L); i; --i) {
+        PrintStackAt(L, i);
+        if (i > 1)
+            printf("\n");
+    }
+    printf("--------------- END STACK DUMP ---------------\n");
+    return 0;
+}
+
 static int luaEcsResetWorld(lua_State *L) {
     InitEcsWorld();
     return 0;
@@ -308,6 +366,7 @@ static int luaEcsNewEntity(lua_State *L) {
         case 1:
             break;
         case 2:;
+            assert(lua_isuserdata(L, 2));
             struct luacenum_value *v = luaL_checkudata(L, 2, "luacenumval1");
             type = (EcsType)v->value;
             break;
@@ -319,6 +378,13 @@ static int luaEcsNewEntity(lua_State *L) {
     return 1;
 }
 
+static int luaEcsNewComponent(lua_State *L) {
+    const char *name = lua_tostring(L, 2);
+    lua_getglobal(L, name);
+    LuaDumpStack(L);
+    return 1;
+}
+
 static const struct luaL_Reg EcsMethods[] = {
     {NULL, NULL}
 };
@@ -326,6 +392,7 @@ static const struct luaL_Reg EcsMethods[] = {
 static const struct luaL_Reg EcsFunctions[] = {
     {"resetWorld", luaEcsResetWorld},
     {"createEntity", luaEcsNewEntity},
+    {"createComponent", luaEcsNewComponent},
     {NULL, NULL}
 };
 
