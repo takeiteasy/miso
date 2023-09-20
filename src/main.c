@@ -6,6 +6,7 @@
 //
 
 #include "miso.h"
+#include "lua.h"
 #include "ecs.h"
 #define NK_INCLUDE_FIXED_TYPES
 #define NK_INCLUDE_STANDARD_IO
@@ -122,6 +123,10 @@ static void init(void) {
     luaL_openlibs(L);
     LuaLoadEcs(L);
     LuaLoadMiso(L);
+    lua_pushcfunction(L, LuaDumpTable);
+    lua_setglobal(L, "LuaDumpTable");
+    lua_pushcfunction(L, LuaDumpStack);
+    lua_setglobal(L, "LuaDumpStack");
     if (luaL_dofile(L, "assets/test.lua")) {
         fprintf(stderr, "ERROR: %s\n", lua_tostring(L, -1));
         assert(0);
@@ -139,14 +144,14 @@ static void init(void) {
     MisoResizeTextureBatch(&state.grid->batch, (state.settings.mapWidth * state.settings.mapHeight) + 1);
     
     MisoImage *font = MisoEmptyImage(128 * 8, 8);
-    MisoColor black = {.rgba = 0xFFFFFFFF};
-    MisoColor transparent = {.rgba = 0};
-#define DRAW_CHARACTER(C)                                                                        \
-do {                                                                                             \
-    for (int i = 0; i < 8; i++)                                                                  \
-        for (int j = 0; j < 8; j++)                                                              \
-            MisoImagePSet(font, x + i, j, font8x8_basic[(C)][j] & 1 << i ? black : transparent); \
-    x += 8;                                                                                      \
+    MisoColor white = {.rgba = 0xFFFFFFFF};
+    MisoColor black = {.a = 255};
+#define DRAW_CHARACTER(C)                                                                  \
+do {                                                                                       \
+    for (int i = 0; i < 8; i++)                                                            \
+        for (int j = 0; j < 8; j++)                                                        \
+            MisoImagePSet(font, x + i, j, font8x8_basic[(C)][j] & 1 << i ? white : black); \
+    x += 8;                                                                                \
 } while(0)
 #if !defined(MAX_FONT_VERTICES)
 #define MAX_FONT_VERTICES 1024
@@ -156,23 +161,20 @@ do {                                                                            
         DRAW_CHARACTER(c);
     state.fontTexture = MisoLoadTextureFromImage(font);
     state.fontBatch = MisoCreateTextureBatch(state.fontTexture, MAX_FONT_VERTICES);
-
+    MisoDestroyImage(font);
 }
 
 static void DrawMapGrid(MisoChunk *chunk, MisoCamera *camera, MisoVec2 position, MisoVec2 gridPosition) {
     MisoTextureBatchDraw(chunk->batch, (MisoVec2){position.x - (chunk->tileW / 2), position.y - (chunk->tileH / 2)}, (MisoVec2){chunk->tileW, chunk->tileH}, (MisoVec2){camera->zoom, camera->zoom}, (MisoVec2){sapp_width(), sapp_height()}, 0.f, (MisoRect){0, 0, chunk->tileW, chunk->tileH});
 }
 
-void DbgDrawString(int x, int y, MisoColor color, const char *string) {
+void DbgDrawString(int x, int y, const char *string) {
     int xoff = x, yoff = y + 25;
     for (int i = 0; i < strlen(string); i++) {
         switch (string[i]) {
             case '\n':
                 yoff += 8;
                 xoff  = x;
-                break;
-            case ' ':
-                xoff += 8;
                 break;
             default:
                 MisoTextureBatchDraw(state.fontBatch, (MisoVec2){xoff, yoff}, (MisoVec2){8, 8}, (MisoVec2){1.f, 1.f}, (MisoVec2){sapp_width(), sapp_height()}, 0.f, (MisoRect){string[i] * 8, 0, 8, 8});
@@ -193,14 +195,14 @@ static int _vscprintf(const char *format, va_list pargs) {
 }
 #endif
 
-void DbgDrawStringFormat(int x, int y, MisoColor color, const char *format, ...) {
+void DbgDrawStringFormat(int x, int y, const char *format, ...) {
     va_list args;
     va_start(args, format);
     size_t size = _vscprintf(format, args) + 1;
     char *str = malloc(sizeof(char) * size);
     vsnprintf(str, size, format, args);
     va_end(args);
-    DbgDrawString(x, y, color, str);
+    DbgDrawString(x, y, str);
     free(str);
 }
 
@@ -242,7 +244,7 @@ static void frame(void) {
     MisoVec2 mouseGridPosition = MisoChunkTileToScreen(state.grid, &state.camera, state.mouseGridPos);
     MisoTextureBatchDraw(state.grid->batch, (MisoVec2){mouseGridPosition.x - (state.grid->tileW / 2), mouseGridPosition.y - (state.grid->tileH / 2)}, (MisoVec2){state.grid->tileW, state.grid->tileH}, (MisoVec2){state.camera.zoom, state.camera.zoom}, (MisoVec2){sapp_width(), sapp_height()}, 0.f, (MisoRect){state.grid->tileW, 0, state.grid->tileW, state.grid->tileH});
     MisoFlushTextureBatch(state.grid->batch);
-    DbgDrawString(0, 0, (MisoColor){255, 255, 255, 255}, "Hello, world!");
+    DbgDrawString(0, 0, "Hello, world!");
     MisoFlushTextureBatch(state.fontBatch);
     snk_render(sapp_width(), sapp_height());
     FinishMiso();

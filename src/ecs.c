@@ -357,9 +357,7 @@ static int EcsEntityHas(EcsEntity entity, EcsEntity component) {
     return StorageHas(EcsFind(component), entity);
 }
 
-static int LuaDumpTable(lua_State* L);
-
-static void PrintStackAt(lua_State *L, int idx) {
+void PrintStackAt(lua_State *L, int idx) {
     int t = lua_type(L, idx);
     switch (t) {
         case LUA_TSTRING:
@@ -385,7 +383,7 @@ static void PrintStackAt(lua_State *L, int idx) {
     }
 }
 
-static int LuaDumpTable(lua_State* L) {
+int LuaDumpTable(lua_State* L) {
     if (!lua_istable(L, -1))
         luaL_error(L, "Expected a table at the top of the stack");
     
@@ -408,7 +406,7 @@ static int LuaDumpTable(lua_State* L) {
     return 0;
 }
 
-static int LuaDumpStack(lua_State* L) {
+int LuaDumpStack(lua_State* L) {
     printf("--------------- LUA STACK DUMP ---------------\n");
     int top = lua_gettop(L);
     for (int i = top; i; --i) {
@@ -694,9 +692,4 @@ void LuaLoadEcs(lua_State *L) {
     luacs_declare_method(L, "get", LuaEntityGetComponent);
     luacs_declare_method(L, "set", LuaEntitySetComponent);
     lua_pop(L, 1);
-    
-    lua_pushcfunction(L, LuaDumpTable);
-    lua_setglobal(L, "LuaDumpTable");
-    lua_pushcfunction(L, LuaDumpStack);
-    lua_setglobal(L, "LuaDumpStack");
 }

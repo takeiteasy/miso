@@ -7,8 +7,7 @@
 
 #ifndef ecs_h
 #define ecs_h
-#include "minilua.h"
-#include "luacstruct.h"
+#include "lua.h"
 #include "hashmap.h"
 
 void InitEcsWorld(void);
