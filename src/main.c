@@ -92,6 +92,10 @@ static struct {
     }
 };
 
+static void LuaLoadMiso(lua_State *L) {
+    // TODO: Load miso wrapper
+}
+
 static void init(void) {
     sg_desc desc = {
         .context = sapp_sgcontext()
@@ -114,6 +118,7 @@ static void init(void) {
     lua_State *L = luaL_newstate();
     luaL_openlibs(L);
     LuaLoadEcs(L);
+    LuaLoadMiso(L);
     if (luaL_dofile(L, "assets/test.lua")) {
         fprintf(stderr, "ERROR: %s\n", lua_tostring(L, -1));
         assert(0);

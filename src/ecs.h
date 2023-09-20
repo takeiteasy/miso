@@ -8,6 +8,8 @@
 #ifndef ecs_h
 #define ecs_h
 #include "minilua.h"
+#include "luacstruct.h"
+#include "hashmap.h"
 
 void InitEcsWorld(void);
 void EcsStep(void);

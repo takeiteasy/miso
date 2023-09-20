@@ -7,11 +7,9 @@
 
 
 #define LUA_IMPL
-#include "ecs.h"
 #define LUACSTRUCT_IMPL
-#include "luacstruct.h"
 #define HASHMAP_IMPL
-#include "hashmap.h"
+#include "ecs.h"
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
@@ -545,10 +543,8 @@ static LuaComponent* LuaFindComponent(lua_State *L, int idx) {
         }
         case LUA_TUSERDATA: {
             LuaEntity *e = (LuaEntity*)luacs_object_pointer(L, idx, "EcsEntity");
-            if (!(EcsIsEntityValid(e->id)) || e->id.parts.flag != EcsComponent) {
-                LuaDumpStack(L);
+            if (!(EcsIsEntityValid(e->id)) || e->id.parts.flag != EcsComponent)
                 luaL_error(L, "Invalid component");
-            }
             size_t iter = 0;
             void *item;
             while (hashmap_iter(world.components, &iter, &item)) {
@@ -603,7 +599,6 @@ static int LuaEntityAddComponent(lua_State *L) {
 }
 
 static int LuaEntityGetComponent(lua_State *L) {
-    LuaDumpStack(L);
     LuaComponent *component = LuaFindComponent(L, -1);
     assert(component->id.id != EcsNil);
     LuaEntity *self = luacs_object_pointer(L, -2, NULL);
