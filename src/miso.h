@@ -147,10 +147,6 @@ EXPORT MisoVec2 MisoChunkTileToScreen(MisoChunk *chunk, MisoCamera *camera, Miso
 EXPORT MisoVec2 MisoScreenToWorld(MisoCamera *camera, MisoVec2 point);
 EXPORT MisoVec2 MisoWorldToScreen(MisoCamera *camera, MisoVec2 point);
 
-EXPORT void MisoDrawString(int x, int y, MisoColor color, const char *string);
-EXPORT void MisoDrawStringFormat(int x, int y, MisoColor color, const char *format, ...);
-EXPORT void MisoDrawDebugText(void);
-
 EXPORT void OrderMiso(void);
 EXPORT void OrderUp(unsigned int width, unsigned int height);
 EXPORT void FinishMiso(void);
