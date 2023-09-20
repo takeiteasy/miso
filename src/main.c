@@ -144,47 +144,20 @@ static void frame(void) {
     struct nk_context *ctx = snk_new_frame();
     Settings tmp;
     memcpy(&tmp, &state.settings, sizeof(Settings));
-    if (nk_begin(ctx, "Settings", nk_rect(0, 0, 300, 600), NK_WINDOW_SCALABLE | NK_WINDOW_BORDER | NK_WINDOW_MINIMIZABLE | NK_WINDOW_MOVABLE)) {
-        if (nk_tree_push(ctx, NK_TREE_TAB, "Map", NK_MAXIMIZED)) {
-            nk_property_int(ctx, "#Map Width:", 32, &tmp.mapWidth, 1024, 1, 1);
-            nk_property_int(ctx, "#Map Height:", 32, &tmp.mapHeight, 1024, 1, 1);
-            //            nk_property_int(ctx, "#Tile Width:", 8, &tmp.tileWidth, 64, 1, 1);
-            //            nk_property_int(ctx, "#Tile Height:", 8, &tmp.tileHeight, 64, 1, 1);
-            nk_tree_pop(ctx);
+    if (nk_begin(ctx, "", nk_rect(0, 0, sapp_width(), 25), NK_WINDOW_NO_SCROLLBAR | NK_WINDOW_BACKGROUND)) {
+        nk_menubar_begin(ctx);
+        nk_layout_row_begin(ctx, NK_STATIC, 20, 1);
+        nk_layout_row_push(ctx, 60);
+        if (nk_menu_begin_label(ctx, "FILE", NK_TEXT_LEFT, nk_vec2(100, 600))) {
+            nk_layout_row_dynamic(ctx, 20, 1);
+            nk_menu_item_label(ctx, "New", NK_TEXT_LEFT);
+            nk_menu_item_label(ctx, "Open", NK_TEXT_LEFT);
+            nk_menu_item_label(ctx, "Save", NK_TEXT_LEFT);
+            nk_menu_item_label(ctx, "Close", NK_TEXT_LEFT);
+            nk_menu_item_label(ctx, "Exit", NK_TEXT_LEFT);
+            nk_menu_end(ctx);
         }
-        float tmpCameraSpeed = state.cameraSpeed;
-        float tmpCameraZoom = state.camera.zoom;
-        float tmpCameraScroll = state.cameraScrollSpeed;
-        if (nk_tree_push(ctx, NK_TREE_TAB, "Camera", NK_MINIMIZED)) {
-            static char buffer[64];
-            sprintf(buffer, "Camera X: %2.f", state.camera.position.x);
-            nk_label(ctx, buffer, NK_TEXT_ALIGN_LEFT);
-            sprintf(buffer, "Camera Y: %2.f", state.camera.position.y);
-            nk_label(ctx, buffer, NK_TEXT_ALIGN_LEFT);
-            nk_property_float(ctx, "#Zoom:", .1f, &tmpCameraZoom, 10.f, .1f, .1f);
-            nk_property_float(ctx, "#Drag Speed:", .1f, &tmpCameraSpeed, 10.f, .1f, .1f);
-            nk_property_float(ctx, "#Scroll Speed:", .1f, &tmpCameraScroll, 10.f, .1f, .1f);
-            nk_tree_pop(ctx);
-        }
-        state.cameraSpeed = tmpCameraSpeed;
-        state.camera.zoom = tmpCameraZoom;
-        state.cameraScrollSpeed = tmpCameraScroll;
-        if (nk_tree_push(ctx, NK_TREE_TAB, "Tiles", NK_MAXIMIZED)) {
-            nk_label(ctx, "Current Map Texture:", NK_TEXT_ALIGN_LEFT);
-            struct nk_image img = nk_image_id((int)state.mapTexture->sg.id);
-            nk_layout_row_static(ctx, state.mapTexture->h, state.mapTexture->w, 1);
-            nk_image(ctx, img);
-            if (nk_button_label(ctx, "Load tile map...")) {
-                osdialog_filters *filter = osdialog_filters_parse("Images:jpg,jpeg,png,tga,bmp,qoi");
-                char *out = osdialog_file(OSDIALOG_OPEN, CurrentDirectory(), NULL, filter);
-                if (out) {
-                    free(out);
-                }
-                osdialog_filters_free(filter);
-            }
-            
-            nk_tree_pop(ctx);
-        }
+        nk_menubar_end(ctx);
     }
     
     if (!nk_window_is_hovered(ctx)) {
@@ -196,6 +169,7 @@ static void frame(void) {
         state.camera.zoom = CLAMP(newZoom, .1f, 10.f);
     }
     nk_end(ctx);
+    
 
     OrderUp(sapp_width(), sapp_height());
     MisoDrawChunk(state.map, &state.camera);
@@ -204,6 +178,8 @@ static void frame(void) {
     MisoVec2 mouseGridPosition = MisoChunkTileToScreen(state.grid, &state.camera, state.mouseGridPos);
     MisoTextureBatchDraw(state.grid->batch, (MisoVec2){mouseGridPosition.x - (state.grid->tileW / 2), mouseGridPosition.y - (state.grid->tileH / 2)}, (MisoVec2){state.grid->tileW, state.grid->tileH}, (MisoVec2){state.camera.zoom, state.camera.zoom}, (MisoVec2){sapp_width(), sapp_height()}, 0.f, (MisoRect){state.grid->tileW, 0, state.grid->tileW, state.grid->tileH});
     MisoFlushTextureBatch(state.grid->batch);
+    MisoDrawString(0, 0, (MisoColor){255, 255, 255, 255}, "Hello, world!");
+    MisoDrawDebugText();
     snk_render(sapp_width(), sapp_height());
     FinishMiso();
     

@@ -10,6 +10,7 @@
 #define STB_IMAGE_IMPLEMENTATION
 #define QOI_IMPLEMENTATION
 #include "miso.h"
+#include "font8x8_basic.h"
 
 static struct {
     bool initialized, inProgress;
@@ -21,6 +22,8 @@ static struct {
     sg_pipeline framebuffer_pip;
     sg_bindings bind;
     sg_image color, depth;
+    MisoTextureBatch *fontBatch;
+    MisoTexture *fontTexture;
 #endif
 } state = {
     .pass_action = {
@@ -1847,6 +1850,51 @@ static void BuildFramebuffer(int width, int height) {
     state.bind.fs_images[0] = state.color;
 }
 
+void MisoDrawString(int x, int y, MisoColor color, const char *string) {
+    int xoff = x, yoff = y + 25;
+    for (int i = 0; i < strlen(string); i++) {
+        switch (string[i]) {
+            case '\n':
+                yoff += 8;
+                xoff  = x;
+                break;
+            case ' ':
+                xoff += 8;
+                break;
+            default:
+                MisoTextureBatchDraw(state.fontBatch, (MisoVec2){xoff, yoff}, (MisoVec2){8, 8}, (MisoVec2){1.f, 1.f}, (MisoVec2){state.size.x, state.size.y}, 0.f, (MisoRect){string[i] * 8, 0, 8, 8});
+                xoff += 8;
+                break;
+        }
+    }
+}
+
+#if !defined(_WIN32) && !defined(_WIN64)
+// Taken from: https://stackoverflow.com/a/4785411
+static int _vscprintf(const char *format, va_list pargs) {
+    va_list argcopy;
+    va_copy(argcopy, pargs);
+    int retval = vsnprintf(NULL, 0, format, argcopy);
+    va_end(argcopy);
+    return retval;
+}
+#endif
+
+void MisoDrawStringFormat(int x, int y, MisoColor color, const char *format, ...) {
+    va_list args;
+    va_start(args, format);
+    size_t size = _vscprintf(format, args) + 1;
+    char *str = malloc(sizeof(char) * size);
+    vsnprintf(str, size, format, args);
+    va_end(args);
+    MisoDrawString(x, y, color, str);
+    free(str);
+}
+
+void MisoDrawDebugText(void) {
+    MisoFlushTextureBatch(state.fontBatch);
+}
+
 void OrderMiso(void) {
     assert(!state.initialized);
     state.initialized = true;
@@ -1925,6 +1973,25 @@ void OrderMiso(void) {
         }
     };
     state.offscreen_pip = sg_make_pipeline(&offscreen_desc);
+    
+    MisoImage *font = MisoEmptyImage(128 * 8, 8);
+    MisoColor black = {.rgba = 0xFFFFFFFF};
+    MisoColor transparent = {.rgba = 0};
+#define DRAW_CHARACTER(C)                                                                        \
+do {                                                                                             \
+    for (int i = 0; i < 8; i++)                                                                  \
+        for (int j = 0; j < 8; j++)                                                              \
+            MisoImagePSet(font, x + i, j, font8x8_basic[(C)][j] & 1 << i ? black : transparent); \
+    x += 8;                                                                                      \
+} while(0)
+#if !defined(MAX_FONT_VERTICES)
+#define MAX_FONT_VERTICES 1024
+#endif
+    int x = 0;
+    for (int c = 0; c < 128; c++)
+        DRAW_CHARACTER(c);
+    state.fontTexture = MisoLoadTextureFromImage(font);
+    state.fontBatch = MisoCreateTextureBatch(state.fontTexture, MAX_FONT_VERTICES);
 }
 
 void OrderUp(unsigned int width, unsigned int height) {
@@ -1963,5 +2030,7 @@ void CleanUpMiso(void) {
     sg_destroy_pipeline(state.framebuffer_pip);
     sg_destroy_buffer(state.bind.vertex_buffers[0]);
 #endif
+    MisoDestroyTexture(state.fontTexture);
+    MisoDestroyTextureBatch(state.fontBatch);
     sg_destroy_pipeline(state.offscreen_pip);
 }

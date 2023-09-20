@@ -37,6 +37,8 @@ Nothing to see yet
     - portable_endian.h
 - [tidwall/hashmap.c](https://github.com/tidwall/hashmap.c) (MIT)
     - hashmap.h
+- [dhepper/font8x8](https://github.com/dhepper/font8x8/) (Public Domain)
+    - font8x8_basic.h
 
 ```* Modified in some way, probably small changes to make building easier```
     
