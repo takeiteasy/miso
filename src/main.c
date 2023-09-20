@@ -110,6 +110,7 @@ static void init(void) {
     state.cameraSpeed = 2.f;
     state.cameraScrollSpeed = .5f;
     
+    InitEcsWorld();
     lua_State *L = luaL_newstate();
     luaL_openlibs(L);
     LuaLoadEcs(L);

@@ -35,6 +35,8 @@ Nothing to see yet
     - sys/tree.h **\***
 - [panzi/portable_endian.h](https://gist.github.com/panzi/6856583) (Public Domain)
     - portable_endian.h
+- [tidwall/hashmap.c](https://github.com/tidwall/hashmap.c) (MIT)
+    - hashmap.h
 
 ```* Modified in some way, probably small changes to make building easier```
     
